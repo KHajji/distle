@@ -4,6 +4,8 @@ Build with
 Run with 
 ```./release/distle --args```
 
+
+```shell
 Usage: distle [OPTIONS] <INPUT> <OUTPUT>
 
 Arguments:
@@ -19,3 +21,4 @@ Options:
   -d, --maxdist <MAXDIST>              
   -v, --verbose                        
   -h, --help      
+```

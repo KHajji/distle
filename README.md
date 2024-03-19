@@ -1,8 +1,8 @@
 Build with 
-```bash cargo build -r```
+```cargo build -r```
 
 Run with 
-```bash ./release/distle --args```
+```./release/distle --args```
 
 Usage: distle [OPTIONS] <INPUT> <OUTPUT>
 

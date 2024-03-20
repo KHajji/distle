@@ -1,13 +1,11 @@
 use std::error::Error;
-use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter};
-
-use crate::types::InputFormat;
-use crate::types::{ChewBBACAinteger, Nucleotide, NucleotideAll, SHA1Hash, SupportedType};
+use std::io::{BufRead, BufWriter, Write};
 
 use bio::io::fasta;
 use clap::ValueEnum;
-use std::io::Write;
+
+use crate::types::InputFormat;
+use crate::types::{ChewBBACAinteger, Nucleotide, NucleotideAll, SHA1Hash, SupportedType};
 
 type InputMatrix = Vec<(String, Vec<SupportedType>)>;
 #[derive(Debug, PartialEq, Clone, Copy, ValueEnum)]
@@ -22,14 +20,13 @@ pub enum OutputFormat {
     Phylip,
 }
 
-pub fn read_and_parse_tabular_file(
-    file_path: &str,
+pub fn read_and_parse_tabular<R: BufRead>(
+    reader: R,
     input_format: InputFormat,
     separator: char,
     skip_header: bool,
 ) -> Result<InputMatrix, Box<dyn Error>> {
-    let file = File::open(file_path)?;
-    let reader = BufReader::new(file);
+    // let reader = BufReader::new(reader);
     let mut lines = reader.lines();
 
     if skip_header {
@@ -54,11 +51,11 @@ pub fn read_and_parse_tabular_file(
     Ok(data_vec)
 }
 
-pub fn read_and_parse_fasta_file(
-    file_path: &str,
+pub fn read_and_parse_fasta<R: BufRead>(
+    reader: R,
     input_format: InputFormat,
 ) -> Result<InputMatrix, Box<dyn Error>> {
-    let reader = fasta::Reader::from_file(file_path)?;
+    let reader = fasta::Reader::new(reader);
     let mut data_vec = Vec::new();
 
     for record in reader.records() {
@@ -104,27 +101,26 @@ fn compute_distance_eq<T: PartialEq>(row1: &[T], row2: &[T], maxdist: Option<usi
         .count()
 }
 
-pub fn write_distances_to_file<'a>(
+pub fn write_distances_to_file<'a, W: Write>(
     distances: impl Iterator<Item = (&'a str, &'a str, usize)> + Clone,
-    output: &str,
+    writer: &mut W,
     output_sep: char,
     output_format: OutputFormat,
     number_of_samples: usize,
 ) -> Result<(), Box<dyn Error>> {
-    let file = File::create(output)?;
-    let mut writer = BufWriter::new(file);
+    let writer = BufWriter::new(writer);
 
     match output_format {
-        OutputFormat::Tabular => write_distances_to_long_format(distances, &mut writer, output_sep),
+        OutputFormat::Tabular => write_distances_to_long_format(distances, writer, output_sep),
         OutputFormat::Phylip => {
-            write_distances_to_philip(distances, &mut writer, output_sep, number_of_samples)
+            write_distances_to_philip(distances, writer, output_sep, number_of_samples)
         }
     }
 }
 
-fn write_distances_to_long_format<'a>(
+fn write_distances_to_long_format<'a, W: Write>(
     distances: impl Iterator<Item = (&'a str, &'a str, usize)>,
-    writer: &mut BufWriter<File>,
+    mut writer: W,
     output_sep: char,
 ) -> Result<(), Box<dyn Error>> {
     for (id1, id2, dist) in distances {
@@ -133,9 +129,9 @@ fn write_distances_to_long_format<'a>(
     Ok(())
 }
 
-fn write_distances_to_philip<'a>(
+fn write_distances_to_philip<'a, W: Write>(
     distances: impl Iterator<Item = (&'a str, &'a str, usize)> + Clone,
-    writer: &mut BufWriter<File>,
+    mut writer: W,
     output_sep: char,
     number_of_samples: usize,
 ) -> Result<(), Box<dyn Error>> {

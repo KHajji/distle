@@ -1,17 +1,17 @@
 use std::error::Error;
+use std::io::{stdin, stdout, BufReader, BufWriter, Read, Write};
 use std::time::Instant;
 
 use clap::Parser;
 use env_logger::Env;
-use log::debug;
+use log::{debug, info};
 
 mod processing;
 mod types;
 
-use log::info;
 use processing::{
-    compute_distances, read_and_parse_fasta_file, read_and_parse_tabular_file,
-    write_distances_to_file, OutputFormat, OutputMode,
+    compute_distances, read_and_parse_fasta, read_and_parse_tabular, write_distances_to_file,
+    OutputFormat, OutputMode,
 };
 use types::InputFormat;
 
@@ -53,6 +53,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     }
 
+    let reader: Box<dyn Read> = if opts.input == "-" {
+        Box::new(stdin())
+    } else {
+        Box::new(std::fs::File::open(&opts.input)?)
+    };
+
+    let reader = BufReader::new(reader);
+
     // print version info
     info!("Version: {}", env!("CARGO_PKG_VERSION"));
 
@@ -62,14 +70,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let start = Instant::now();
     let data_map = match opts.input_format {
         InputFormat::Fasta | InputFormat::FastaAll => {
-            read_and_parse_fasta_file(&opts.input, opts.input_format)?
+            read_and_parse_fasta(reader, opts.input_format)?
         }
-        _ => read_and_parse_tabular_file(
-            &opts.input,
-            opts.input_format,
-            opts.input_sep,
-            opts.skip_header,
-        )?,
+        _ => read_and_parse_tabular(reader, opts.input_format, opts.input_sep, opts.skip_header)?,
     };
     debug!("Reading time: {:?}", start.elapsed());
     let start = Instant::now();
@@ -79,9 +82,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Compute the pairwise distances
     let distances = compute_distances(&data_map, opts.maxdist, opts.output_mode);
 
+    let writer: Box<dyn Write> = if opts.output == "-" {
+        Box::new(stdout())
+    } else {
+        Box::new(std::fs::File::create(&opts.output)?)
+    };
+
+    let mut writer = BufWriter::new(writer);
+
     write_distances_to_file(
         distances,
-        &opts.output,
+        &mut writer,
         opts.output_sep,
         opts.output_format,
         data_map.len(),

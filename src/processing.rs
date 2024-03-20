@@ -5,7 +5,7 @@ use bio::io::fasta;
 use clap::ValueEnum;
 
 use crate::types::InputFormat;
-use crate::types::{ChewBBACAinteger, Nucleotide, NucleotideAll, SHA1Hash, SupportedType};
+use crate::types::SupportedType;
 
 type InputMatrix = Vec<(String, Vec<SupportedType>)>;
 #[derive(Debug, PartialEq, Clone, Copy, ValueEnum)]
@@ -107,7 +107,7 @@ fn compute_distance_eq<T: PartialEq>(row1: &[T], row2: &[T], maxdist: Option<usi
 
 pub fn write_distances_to_file<'a, W: Write>(
     distances: impl Iterator<Item = (&'a str, &'a str, usize)> + Clone,
-    writer: &mut W,
+    writer: W,
     output_sep: char,
     output_format: OutputFormat,
     number_of_samples: usize,
@@ -162,6 +162,7 @@ fn write_distances_to_philip<'a, W: Write>(
 
 #[cfg(test)]
 mod tests {
+    use crate::types::{ChewBBACAinteger, Nucleotide, NucleotideAll, SHA1Hash};
     use std::str::FromStr;
 
     use super::*;

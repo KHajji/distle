@@ -151,3 +151,83 @@ impl PartialEq for NucleotideAll {
         self.0 == other.0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_chewbbaca_integer() {
+        let x = ChewBBACAinteger::from_str("1").unwrap();
+        assert_eq!(x, ChewBBACAinteger(1));
+        let x = ChewBBACAinteger::from_str("INF-1").unwrap();
+        assert_eq!(x, ChewBBACAinteger(1));
+        let x = ChewBBACAinteger::from_str("INF-0").unwrap();
+        assert_eq!(x, ChewBBACAinteger(0));
+        let x = ChewBBACAinteger::from_str("INF-").unwrap();
+        assert_eq!(x, ChewBBACAinteger(0));
+    }
+
+    #[test]
+    fn test_sha1_hash() {
+        let x = SHA1Hash::from_str("6bc8d04609de559621859873ef301f221cf5d991").unwrap();
+        assert_eq!(
+            x,
+            SHA1Hash([
+                0x6b, 0xc8, 0xd0, 0x46, 0x09, 0xde, 0x55, 0x96, 0x21, 0x85, 0x98, 0x73, 0xef, 0x30,
+                0x1f, 0x22, 0x1c, 0xf5, 0xd9, 0x91
+            ])
+        );
+    }
+
+    #[test]
+    fn test_nucleotide() {
+        let x = Nucleotide::from_str("A").unwrap();
+        assert_eq!(x, Nucleotide(1));
+        let x = Nucleotide::from_str("C").unwrap();
+        assert_eq!(x, Nucleotide(2));
+        let x = Nucleotide::from_str("G").unwrap();
+        assert_eq!(x, Nucleotide(3));
+        let x = Nucleotide::from_str("T").unwrap();
+        assert_eq!(x, Nucleotide(4));
+        let x = Nucleotide::from_str("a").unwrap();
+        assert_eq!(x, Nucleotide(1));
+        let x = Nucleotide::from_str("c").unwrap();
+        assert_eq!(x, Nucleotide(2));
+        let x = Nucleotide::from_str("g").unwrap();
+        assert_eq!(x, Nucleotide(3));
+        let x = Nucleotide::from_str("t").unwrap();
+        assert_eq!(x, Nucleotide(4));
+        let x = Nucleotide::from_str("X").unwrap();
+        assert_eq!(x, Nucleotide(0));
+        assert_eq!(x, Nucleotide::from(1));
+        assert_eq!(x, Nucleotide::from(2));
+        assert_eq!(x, Nucleotide::from(3));
+        assert_eq!(x, Nucleotide::from(4));
+    }
+
+    #[test]
+    fn test_nucleotide_all() {
+        let x = NucleotideAll::from_str("A").unwrap();
+        assert_eq!(x, NucleotideAll(65));
+        let x = NucleotideAll::from_str("C").unwrap();
+        assert_eq!(x, NucleotideAll(67));
+        let x = NucleotideAll::from_str("G").unwrap();
+        assert_eq!(x, NucleotideAll(71));
+        let x = NucleotideAll::from_str("T").unwrap();
+        assert_eq!(x, NucleotideAll(84));
+        let x = NucleotideAll::from_str("a").unwrap();
+        assert_eq!(x, NucleotideAll(97));
+        let x = NucleotideAll::from_str("c").unwrap();
+        assert_eq!(x, NucleotideAll(99));
+        let x = NucleotideAll::from_str("g").unwrap();
+        assert_eq!(x, NucleotideAll(103));
+        let x = NucleotideAll::from_str("t").unwrap();
+        assert_eq!(x, NucleotideAll(116));
+        let x = NucleotideAll::from_str("X").unwrap();
+        assert_ne!(x, NucleotideAll::from_str("a").unwrap());
+        assert_ne!(x, NucleotideAll::from_str("c").unwrap());
+        assert_ne!(x, NucleotideAll::from_str("t").unwrap());
+        assert_ne!(x, NucleotideAll::from_str("g").unwrap());
+    }
+}

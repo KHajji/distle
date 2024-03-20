@@ -38,6 +38,9 @@ struct Cli {
     #[arg(short = 'd', long, default_value = None)]
     maxdist: Option<usize>,
 
+    #[arg(short = 's', long)]
+    skip_header: bool,
+
     #[arg(short = 'v', long)]
     verbose: bool,
 }
@@ -61,7 +64,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         InputFormat::Fasta | InputFormat::FastaAll => {
             read_and_parse_fasta_file(&opts.input, opts.input_format)?
         }
-        _ => read_and_parse_tabular_file(&opts.input, opts.input_format, opts.input_sep)?,
+        _ => read_and_parse_tabular_file(
+            &opts.input,
+            opts.input_format,
+            opts.input_sep,
+            opts.skip_header,
+        )?,
     };
     debug!("Reading time: {:?}", start.elapsed());
     let start = Instant::now();

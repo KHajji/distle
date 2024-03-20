@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter};
 
 use crate::types::InputFormat;
-use crate::types::{SupportedType, NucleotideAll, Nucleotide, ChewBBACAinteger, SHA1Hash};
+use crate::types::{ChewBBACAinteger, Nucleotide, NucleotideAll, SHA1Hash, SupportedType};
 
 use bio::io::fasta;
 use clap::ValueEnum;
@@ -26,13 +26,19 @@ pub fn read_and_parse_tabular_file(
     file_path: &str,
     input_format: InputFormat,
     separator: char,
+    skip_header: bool,
 ) -> Result<InputMatrix, Box<dyn Error>> {
     let file = File::open(file_path)?;
     let reader = BufReader::new(file);
+    let mut lines = reader.lines();
+
+    if skip_header {
+        lines.next();
+    }
 
     let mut data_vec = Vec::new();
 
-    for line in reader.lines() {
+    for line in lines {
         let line = line?;
         let mut fields = line.split(separator);
         let id = match fields.next() {

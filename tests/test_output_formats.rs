@@ -27,7 +27,7 @@ pub fn test_output_long() {
     let expected = std::fs::read_to_string("tests/data/output.tsv").unwrap();
     let result = std::fs::read_to_string(output).unwrap();
     
-    std::fs::remove_file(output).unwrap();
+    std::fs::remove_file(output);
     assert_eq!(expected, result);
 }
 
@@ -57,7 +57,7 @@ pub fn test_output_long_all() {
     let expected = std::fs::read_to_string("tests/data/output_full.tsv").unwrap();
     let result = std::fs::read_to_string(output).unwrap();
     
-    std::fs::remove_file(output).unwrap();
+    std::fs::remove_file(output);
     assert_eq!(expected, result);
 }
 
@@ -87,7 +87,7 @@ pub fn test_output_phylip() {
     let expected = std::fs::read_to_string("tests/data/output.phylip").unwrap();
     let result = std::fs::read_to_string(output).unwrap();
     
-    std::fs::remove_file(output).unwrap();
+    std::fs::remove_file(output);
     assert_eq!(expected, result);
 }
 
@@ -117,7 +117,7 @@ pub fn test_output_phylip_full() {
     let expected = std::fs::read_to_string("tests/data/output_full.phylip").unwrap();
     let result = std::fs::read_to_string(output).unwrap();
     
-    std::fs::remove_file(output).unwrap();
+    std::fs::remove_file(output);
     assert_eq!(expected, result);
 }
 
@@ -132,7 +132,7 @@ pub fn test_input_cgmlst_hash() {
     let output_mode = OutputMode::LowerTriangle;
     let maxdist = None;
 
-    let data_map = read_and_parse_tabular_file(input, input_format, input_sep).unwrap();
+    let data_map = read_and_parse_tabular_file(input, input_format, input_sep, false).unwrap();
     let distances = compute_distances(
         &data_map,
         maxdist,
@@ -148,7 +148,7 @@ pub fn test_input_cgmlst_hash() {
     let expected = std::fs::read_to_string("tests/data/output_cgmlst_hash.phylip").unwrap();
     let result = std::fs::read_to_string(output).unwrap();
     
-    std::fs::remove_file(output).unwrap();
+    std::fs::remove_file(output);
     assert_eq!(expected, result);
 }
 
@@ -163,7 +163,7 @@ pub fn test_input_cgmlst_hash_full() {
     let output_mode = OutputMode::Full;
     let maxdist = None;
 
-    let data_map = read_and_parse_tabular_file(input, input_format, input_sep).unwrap();
+    let data_map = read_and_parse_tabular_file(input, input_format, input_sep, false).unwrap();
     let distances = compute_distances(
         &data_map,
         maxdist,
@@ -179,6 +179,6 @@ pub fn test_input_cgmlst_hash_full() {
     let expected = std::fs::read_to_string("tests/data/output_cgmlst_hash_full.phylip").unwrap();
     let result = std::fs::read_to_string(output).unwrap();
     
-    std::fs::remove_file(output).unwrap();
+    std::fs::remove_file(output);
     assert_eq!(expected, result);
 }

@@ -5,9 +5,13 @@ use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Clone, Copy, ValueEnum)]
 pub enum InputFormat {
-    Chewbbaca,
-    ChewbbacaHash,
+    /// A cgmlst table with allele numbers. Optimized for ChewBBACA output
+    Cgmlst,
+    /// A cgmlst table with SHA1 hashes of the nucleotide of the alleles
+    CgmlstHash,
+    /// An alignment of nucleotide sequences in FASTA format
     Fasta,
+    /// An alignment of nucleotide sequences in FASTA format. Counts all differences and not just [ACTG]
     FastaAll,
 }
 
@@ -25,10 +29,10 @@ impl SupportedType {
         input_format: InputFormat,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         match input_format {
-            InputFormat::Chewbbaca => Ok(SupportedType::ChewBBACAinteger(
-                ChewBBACAinteger::from_str(s)?,
-            )),
-            InputFormat::ChewbbacaHash => Ok(SupportedType::SHA1Hash(SHA1Hash::from_str(s)?)),
+            InputFormat::Cgmlst => Ok(SupportedType::ChewBBACAinteger(ChewBBACAinteger::from_str(
+                s,
+            )?)),
+            InputFormat::CgmlstHash => Ok(SupportedType::SHA1Hash(SHA1Hash::from_str(s)?)),
             InputFormat::Fasta => Ok(SupportedType::Nucleotide(Nucleotide::from_str(s)?)),
             InputFormat::FastaAll => Ok(SupportedType::NucleotideAll(NucleotideAll::from_str(s)?)),
         }
@@ -127,9 +131,10 @@ impl std::str::FromStr for NucleotideAll {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // get first char from str and put it in
-        s.chars().next().map(| c| Self(c as u8)).ok_or(
-            "NucleotideAll::from_str: could not parse first char from string"
-        )       
+        s.chars()
+            .next()
+            .map(|c| Self(c as u8))
+            .ok_or("NucleotideAll::from_str: could not parse first char from string")
     }
 }
 

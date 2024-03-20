@@ -123,7 +123,7 @@ pub fn test_output_phylip_full() {
 pub fn test_input_cgmlst_hash() {
     let input = BufReader::new(File::open("tests/data/cgmlst_hash.tsv").unwrap());
     let mut output = Cursor::new(Vec::new());
-    let input_format = InputFormat::ChewbbacaHash;
+    let input_format = InputFormat::CgmlstHash;
     let output_format = OutputFormat::Phylip;
     let input_sep = '\t';
     let output_sep = '\t';
@@ -152,7 +152,7 @@ pub fn test_input_cgmlst_hash() {
 pub fn test_input_cgmlst_hash_full() {
     let input = BufReader::new(File::open("tests/data/cgmlst_hash.tsv").unwrap());
     let mut output = Cursor::new(Vec::new()); // In-memory string
-    let input_format = InputFormat::ChewbbacaHash;
+    let input_format = InputFormat::CgmlstHash;
     let output_format = OutputFormat::Phylip;
     let input_sep = '\t';
     let output_sep = '\t';

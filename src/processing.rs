@@ -10,13 +10,17 @@ use crate::types::{ChewBBACAinteger, Nucleotide, NucleotideAll, SHA1Hash, Suppor
 type InputMatrix = Vec<(String, Vec<SupportedType>)>;
 #[derive(Debug, PartialEq, Clone, Copy, ValueEnum)]
 pub enum OutputMode {
+    /// Only output the lower triangle of the distance matrix since it is diagonally symmetric
     LowerTriangle,
+    /// Output the full distance matrix
     Full,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, ValueEnum)]
 pub enum OutputFormat {
+    /// Output the distances in a tabular long format
     Tabular,
+    /// Output the distances in a Phylip format
     Phylip,
 }
 

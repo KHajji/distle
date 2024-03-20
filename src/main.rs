@@ -15,32 +15,44 @@ use processing::{
 };
 use types::InputFormat;
 
-/// This struct represents the command-line arguments
 #[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
 struct Cli {
+    /// The input file or '-' for stdin.
     input: String,
+
+    /// The output file or '-' for stdout.
     output: String,
+
+    /// The format of the input file.
     #[arg(value_enum, short = 'i', long, default_value = "fasta")]
     input_format: InputFormat,
 
+    /// The format of the output file.
     #[arg(value_enum, short = 'o', long, default_value = "tabular")]
     output_format: OutputFormat,
 
+    /// The separator character for the input file. Relevant for tabular input files.
     #[arg(long, default_value = "\t")]
     input_sep: char,
 
+    /// The separator character for the output file.
     #[arg(long, default_value = "\t")]
     output_sep: char,
 
+    /// The output mode.
     #[arg(value_enum, short = 'm', long, default_value = "lower-triangle")]
     output_mode: OutputMode,
 
+    /// If set, distance calculations will be stopped when this distance is reached. Useful for large datasets.
     #[arg(short = 'd', long, default_value = None)]
     maxdist: Option<usize>,
 
+    /// Skip the header line of the input file. Relevant for tabular input files.
     #[arg(short = 's', long)]
     skip_header: bool,
 
+    /// Enable verbose mode. Outputs debug messages and calculation times.
     #[arg(short = 'v', long)]
     verbose: bool,
 }

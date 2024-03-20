@@ -5,7 +5,7 @@ Run with
 ```./release/distle --args```
 
 
-```shell
+```
 Usage: distle [OPTIONS] <INPUT> <OUTPUT>
 
 Arguments:
@@ -22,10 +22,10 @@ Options:
           [default: fasta]
 
           Possible values:
-          - chewbbaca:      A cgmlst table with alle numbers
-          - chewbbaca-hash: A cgmlst table with SHA1 hashes of the nucleotide of the alleles
-          - fasta:          An alignment of nucleotide sequences in FASTA format
-          - fasta-all:      An alignment of nucleotide sequences in FASTA format. Counts all differences and not just [ACTG]
+          - cgmlst:      A cgmlst table with allele numbers. Optimized for ChewBBACA output
+          - cgmlst-hash: A cgmlst table with SHA1 hashes of the nucleotide of the alleles
+          - fasta:       An alignment of nucleotide sequences in FASTA format
+          - fasta-all:   An alignment of nucleotide sequences in FASTA format. Counts all differences and not just [ACTG]
 
   -o, --output-format <OUTPUT_FORMAT>
           The format of the output file

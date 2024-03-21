@@ -2,8 +2,8 @@ use std::fs::File;
 use std::io::{BufReader, Cursor, Read, Seek, SeekFrom};
 
 use distle::processing::{
-    compute_distances, read_and_parse_fasta, read_and_parse_tabular, write_distances_to_file,
-    OutputFormat, OutputMode,
+    compute_distances, read_and_parse_fasta, read_and_parse_tabular, remove_identical_columns,
+    write_distances_to_file, OutputFormat, OutputMode,
 };
 use distle::types::InputFormat;
 
@@ -17,7 +17,8 @@ pub fn test_output_long() {
     let output_mode = OutputMode::LowerTriangle;
     let maxdist = None;
 
-    let data_map = read_and_parse_fasta(input, input_format).unwrap();
+    let mut data_map = read_and_parse_fasta(input, input_format).unwrap();
+    remove_identical_columns(&mut data_map);
     let distances = compute_distances(&data_map, maxdist, output_mode);
     write_distances_to_file(
         distances,
@@ -45,7 +46,8 @@ pub fn test_output_long_all() {
     let output_mode = OutputMode::Full;
     let maxdist = None;
 
-    let data_map = read_and_parse_fasta(input, input_format).unwrap();
+    let mut data_map = read_and_parse_fasta(input, input_format).unwrap();
+    remove_identical_columns(&mut data_map);
     let distances = compute_distances(&data_map, maxdist, output_mode);
     write_distances_to_file(
         distances,
@@ -73,7 +75,8 @@ pub fn test_output_phylip() {
     let output_mode = OutputMode::LowerTriangle;
     let maxdist = None;
 
-    let data_map = read_and_parse_fasta(input, input_format).unwrap();
+    let mut data_map = read_and_parse_fasta(input, input_format).unwrap();
+    remove_identical_columns(&mut data_map);
     let distances = compute_distances(&data_map, maxdist, output_mode);
     write_distances_to_file(
         distances,
@@ -101,7 +104,8 @@ pub fn test_output_phylip_full() {
     let output_mode = OutputMode::Full;
     let maxdist = None;
 
-    let data_map = read_and_parse_fasta(input, input_format).unwrap();
+    let mut data_map = read_and_parse_fasta(input, input_format).unwrap();
+    remove_identical_columns(&mut data_map);
     let distances = compute_distances(&data_map, maxdist, output_mode);
     write_distances_to_file(
         distances,
@@ -130,7 +134,8 @@ pub fn test_input_cgmlst_hash() {
     let output_mode = OutputMode::LowerTriangle;
     let maxdist = None;
 
-    let data_map = read_and_parse_tabular(input, input_format, input_sep, false).unwrap();
+    let mut data_map = read_and_parse_tabular(input, input_format, input_sep, false).unwrap();
+    remove_identical_columns(&mut data_map);
     let distances = compute_distances(&data_map, maxdist, output_mode);
     write_distances_to_file(
         distances,
@@ -159,7 +164,8 @@ pub fn test_input_cgmlst_hash_full() {
     let output_mode = OutputMode::Full;
     let maxdist = None;
 
-    let data_map = read_and_parse_tabular(input, input_format, input_sep, false).unwrap();
+    let mut data_map = read_and_parse_tabular(input, input_format, input_sep, false).unwrap();
+    remove_identical_columns(&mut data_map);
     let distances = compute_distances(&data_map, maxdist, output_mode);
     write_distances_to_file(
         distances,

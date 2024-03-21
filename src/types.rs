@@ -1,5 +1,3 @@
-//define fieldtype trait that is both partialeq and fromstr
-
 use clap::ValueEnum;
 use std::str::FromStr;
 

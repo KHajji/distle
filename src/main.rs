@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::error::Error;
 use std::io::{stdin, stdout, BufReader, BufWriter, Read, Write};
 use std::time::Instant;
@@ -10,8 +11,8 @@ mod processing;
 mod types;
 
 use processing::{
-    compute_distances, read_and_parse_fasta, read_and_parse_tabular, write_distances_to_file,
-    OutputFormat, OutputMode,
+    compute_distances, read_and_parse_fasta, read_and_parse_tabular, remove_identical_columns,
+    write_distances_to_file, OutputFormat, OutputMode,
 };
 use types::InputFormat;
 
@@ -80,7 +81,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     debug!("Cli options: {:?}", opts);
 
     let start = Instant::now();
-    let data_map = match opts.input_format {
+    let mut data_map = match opts.input_format {
         InputFormat::Fasta | InputFormat::FastaAll => {
             read_and_parse_fasta(reader, opts.input_format)?
         }
@@ -88,6 +89,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
     debug!("Reading time: {:?}", start.elapsed());
     let start = Instant::now();
+
+    // Remove columns that are all the same
+    let n_removed = remove_identical_columns(&mut data_map);
+
+    debug!(
+        "Removed {:?} columns that are all the same: {:?}",
+        n_removed,
+        start.elapsed()
+    );
 
     info!("Computing distances and writing to file: {}", &opts.output);
 

@@ -1,8 +1,10 @@
+use std::collections::HashSet;
 use std::error::Error;
 use std::io::{BufRead, BufWriter, Write};
 
 use bio::io::fasta;
 use clap::ValueEnum;
+use rayon::prelude::*;
 
 use crate::types::InputFormat;
 use crate::types::SupportedType;
@@ -76,25 +78,59 @@ pub fn read_and_parse_fasta<R: BufRead>(
     Ok(data_vec)
 }
 
+pub fn remove_identical_columns<T, X>(data_map: &mut Vec<(X, Vec<T>)>) -> usize
+where
+    T: PartialEq,
+{
+    let (longest_vec_index, longest_len) = data_map
+        .iter()
+        .enumerate()
+        .map(|(i, (_, row))| (i, row.len()))
+        .max_by_key(|&(_, len)| len)
+        .unwrap_or((0, 0));
+
+    let to_remove: HashSet<_> = (0..longest_len)
+        .rev()
+        .filter(|&i| {
+            let first = data_map[longest_vec_index].1.get(i);
+            first.is_some() && data_map.iter().all(|(_, row)| row.get(i) == first)
+        })
+        .collect();
+
+    for row in data_map {
+        let mut index = 0;
+        row.1.retain(|_| {
+            let keep = !to_remove.contains(&index);
+            index += 1;
+            keep
+        });
+    }
+    to_remove.len()
+}
+
 pub fn compute_distances(
-    data_map: &[(String, Vec<impl PartialEq + Clone>)],
+    data_map: &[(String, Vec<impl PartialEq + Clone + std::marker::Sync>)],
     maxdist: Option<usize>,
     output_mode: OutputMode,
 ) -> impl Iterator<Item = (&str, &str, usize)> + Clone {
     let len = data_map.len();
 
-    (0..len).flat_map(move |i| {
-        let max_j = match output_mode {
-            OutputMode::LowerTriangle => i,
-            OutputMode::Full => len,
-        };
-        (0..max_j).map(move |j| {
-            let (id1, row1) = &data_map[i];
-            let (id2, row2) = &data_map[j];
-            let dist = compute_distance_eq(row1, row2, maxdist);
-            (&id1[..], &id2[..], dist)
+    (0..len)
+        .into_par_iter()
+        .flat_map(move |i| {
+            let max_j = match output_mode {
+                OutputMode::LowerTriangle => i,
+                OutputMode::Full => len,
+            };
+            (0..max_j).into_par_iter().map(move |j| {
+                let (id1, row1) = &data_map[i];
+                let (id2, row2) = &data_map[j];
+                let dist = compute_distance_eq(row1, row2, maxdist);
+                (id1.as_str(), id2.as_str(), dist)
+            })
         })
-    })
+        .collect::<Vec<_>>()
+        .into_iter()
 }
 
 fn compute_distance_eq<T: PartialEq>(row1: &[T], row2: &[T], maxdist: Option<usize>) -> usize {
@@ -247,5 +283,26 @@ mod tests {
         assert_eq!(compute_distance_eq(&row1, &row2, None), 5);
         assert_eq!(compute_distance_eq(&row1, &row3, None), 1);
         assert_eq!(compute_distance_eq(&row2, &row3, None), 6);
+    }
+
+    #[test]
+    fn test_remove_identical_columns() {
+        let mut data_map = vec![
+            ("id1", vec![1, 2, 3, 4, 5]),
+            ("id2", vec![1, 2, 4, 4, 5]),
+            ("id3", vec![1, 2, 3, 4, 5, 6]),
+        ];
+        let input = data_map.clone();
+        let expected_number_removed = 4;
+        let number_removed = remove_identical_columns(&mut data_map);
+        
+        let expected_data_map = vec![
+            ("id1", vec![3]),
+            ("id2", vec![4]),
+            ("id3", vec![3, 6]),
+        ];
+
+        assert_eq!(number_removed, expected_number_removed);
+        assert_eq!(data_map, expected_data_map);
     }
 }

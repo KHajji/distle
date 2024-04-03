@@ -43,6 +43,32 @@ impl SupportedType {
             x => Err(format!("Type not supported: {:?}", x).into()),
         }
     }
+
+    /// Compare two SupportedType without exceptions that should be the same (e.g. 0 for chewbbaca and N for fasta)
+    /// This is important for the remove_identical_columns function
+    pub fn eq_whithout_exeptions(&self, other: &Self) -> bool {
+        let result = match (self, other) {
+            (
+                SupportedType::ChewBBACAinteger(ChewBBACAinteger(x)),
+                SupportedType::ChewBBACAinteger(ChewBBACAinteger(y)),
+            ) => x == y,
+            (SupportedType::SHA1Hash(SHA1Hash(x)), SupportedType::SHA1Hash(SHA1Hash(y))) => x == y,
+            (
+                SupportedType::Nucleotide(Nucleotide(x)),
+                SupportedType::Nucleotide(Nucleotide(y)),
+            ) => x == y,
+            (
+                SupportedType::NucleotideAll(NucleotideAll(x)),
+                SupportedType::NucleotideAll(NucleotideAll(y)),
+            ) => x == y,
+            _ => panic!(
+                "Types do not match while comparing: {:?} and {:?}",
+                self, other
+            ),
+        };
+        println!("{:?} == {:?} = {}", self, other, result);
+        result
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

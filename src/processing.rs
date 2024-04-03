@@ -78,10 +78,7 @@ pub fn read_and_parse_fasta<R: BufRead>(
     Ok(data_vec)
 }
 
-pub fn remove_identical_columns<T, X>(data_map: &mut Vec<(X, Vec<T>)>) -> usize
-where
-    T: PartialEq,
-{
+pub fn remove_identical_columns<X>(data_map: &mut Vec<(X, Vec<SupportedType>)>) -> usize {
     let (longest_vec_index, longest_len) = data_map
         .iter()
         .enumerate()
@@ -92,8 +89,11 @@ where
     let to_remove: HashSet<_> = (0..longest_len)
         .rev()
         .filter(|&i| {
-            let first = data_map[longest_vec_index].1.get(i);
-            first.is_some() && data_map.iter().all(|(_, row)| row.get(i) == first)
+            let longest = data_map[longest_vec_index].1.get(i);
+            data_map.iter().all(|(_, row)| match (longest, row.get(i)) {
+                (Some(f), Some(r)) => SupportedType::eq_whithout_exeptions(f, r),
+                _ => false,
+            })
         })
         .collect();
 
@@ -265,6 +265,20 @@ mod tests {
         assert_eq!(compute_distance_eq(&row1, &row2, None), 0);
         assert_eq!(compute_distance_eq(&row1, &row3, None), 1);
         assert_eq!(compute_distance_eq(&row2, &row3, None), 1);
+
+        // >ref
+        // TACCGTG
+        // >sampleA
+        // CGTTACT
+        // >sampleB
+        // NNCNGTN
+        let ref1 = vec![t, a, c, c, g, t, g];
+        let sample_a = vec![c, g, t, t, a, c, t];
+        let sample_b = vec![n, n, c, n, g, t, n];
+
+        assert_eq!(compute_distance_eq(&ref1, &sample_a, None), 7);
+        assert_eq!(compute_distance_eq(&ref1, &sample_b, None), 0);
+        assert_eq!(compute_distance_eq(&sample_a, &sample_b, None), 3);
     }
 
     #[test]
@@ -287,22 +301,35 @@ mod tests {
 
     #[test]
     fn test_remove_identical_columns() {
+        let a = SupportedType::NucleotideAll(NucleotideAll::from_str("A").unwrap());
+        let c = SupportedType::NucleotideAll(NucleotideAll::from_str("C").unwrap());
+        let g = SupportedType::NucleotideAll(NucleotideAll::from_str("G").unwrap());
+        let t = SupportedType::NucleotideAll(NucleotideAll::from_str("T").unwrap());
+        let n = SupportedType::NucleotideAll(NucleotideAll::from_str("n").unwrap());
+        let d = SupportedType::NucleotideAll(NucleotideAll::from_str("-").unwrap());
+
         let mut data_map = vec![
-            ("id1", vec![1, 2, 3, 4, 5]),
-            ("id2", vec![1, 2, 4, 4, 5]),
-            ("id3", vec![1, 2, 3, 4, 5, 6]),
+            (String::from("id1"), vec![a, c, g, t, n, d]),
+            (String::from("id2"), vec![a, n, d, d, n, n]),
+            (String::from("id3"), vec![a, c, g, t, n, d]),
         ];
-        let input = data_map.clone();
-        let expected_number_removed = 4;
+        let data_map_original = data_map.clone();
+        let expected_number_removed = 2;
         let number_removed = remove_identical_columns(&mut data_map);
-        
+
         let expected_data_map = vec![
-            ("id1", vec![3]),
-            ("id2", vec![4]),
-            ("id3", vec![3, 6]),
+            (String::from("id1"), vec![c, g, t, d]),
+            (String::from("id2"), vec![n, d, d, n]),
+            (String::from("id3"), vec![c, g, t, d]),
         ];
 
         assert_eq!(number_removed, expected_number_removed);
         assert_eq!(data_map, expected_data_map);
+
+        // test that the distances are also the same
+        let distances_original: Vec<_> = compute_distances(&data_map_original, None, OutputMode::Full).collect();
+        let distances: Vec<_> = compute_distances(&data_map, None, OutputMode::Full).collect();
+
+        assert_eq!(distances_original, distances);
     }
 }

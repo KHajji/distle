@@ -185,3 +185,26 @@ pub fn test_input_cgmlst_hash_full() {
     let expected = include_bytes!("data/output_cgmlst_hash_full.phylip").to_vec();
     assert_eq!(expected, result);
 }
+
+#[test]
+pub fn test_remove_identical() {
+    let input = BufReader::new(File::open("tests/data/test_remove_identical.fasta").unwrap());
+    let data_map = read_and_parse_fasta(input, InputFormat::Fasta).unwrap();
+    let mut data_map_with_removed_columns = data_map.clone();
+    let _n_removed = remove_identical_columns(&mut data_map_with_removed_columns);
+
+    // assert_eq!(data_map, data_map_with_removed_columns);
+
+    let dist_original: Vec<_> =
+        compute_distances(&data_map, None, OutputMode::LowerTriangle).collect();
+    let dist_removed: Vec<_> = compute_distances(
+        &data_map_with_removed_columns,
+        None,
+        OutputMode::LowerTriangle,
+    )
+    .collect();
+
+    assert_eq!(dist_original, dist_removed);
+
+    // let n_removed = remove_identical_columns(&mut data_map_with_removed_columns);
+}

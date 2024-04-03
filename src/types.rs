@@ -65,9 +65,7 @@ impl SupportedType {
                 "Types do not match while comparing: {:?} and {:?}",
                 self, other
             ),
-        };
-        println!("{:?} == {:?} = {}", self, other, result);
-        result
+        }
     }
 }
 

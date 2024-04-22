@@ -327,7 +327,8 @@ mod tests {
         assert_eq!(data_map, expected_data_map);
 
         // test that the distances are also the same
-        let distances_original: Vec<_> = compute_distances(&data_map_original, None, OutputMode::Full).collect();
+        let distances_original: Vec<_> =
+            compute_distances(&data_map_original, None, OutputMode::Full).collect();
         let distances: Vec<_> = compute_distances(&data_map, None, OutputMode::Full).collect();
 
         assert_eq!(distances_original, distances);

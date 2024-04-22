@@ -47,7 +47,7 @@ impl SupportedType {
     /// Compare two SupportedType without exceptions that should be the same (e.g. 0 for chewbbaca and N for fasta)
     /// This is important for the remove_identical_columns function
     pub fn eq_whithout_exeptions(&self, other: &Self) -> bool {
-        let result = match (self, other) {
+        match (self, other) {
             (
                 SupportedType::ChewBBACAinteger(ChewBBACAinteger(x)),
                 SupportedType::ChewBBACAinteger(ChewBBACAinteger(y)),

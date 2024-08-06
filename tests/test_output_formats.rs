@@ -19,7 +19,7 @@ pub fn test_output_long() {
 
     let mut data_map = read_and_parse_fasta(input, input_format).unwrap();
     remove_identical_columns(&mut data_map);
-    let distances = compute_distances(&data_map, maxdist, output_mode);
+    let distances = compute_distances(&data_map, maxdist, output_mode,None);
     write_distances_to_file(
         distances,
         &mut output,
@@ -48,7 +48,7 @@ pub fn test_output_long_all() {
 
     let mut data_map = read_and_parse_fasta(input, input_format).unwrap();
     remove_identical_columns(&mut data_map);
-    let distances = compute_distances(&data_map, maxdist, output_mode);
+    let distances = compute_distances(&data_map, maxdist, output_mode,None);
     write_distances_to_file(
         distances,
         &mut output,
@@ -77,7 +77,7 @@ pub fn test_output_phylip() {
 
     let mut data_map = read_and_parse_fasta(input, input_format).unwrap();
     remove_identical_columns(&mut data_map);
-    let distances = compute_distances(&data_map, maxdist, output_mode);
+    let distances = compute_distances(&data_map, maxdist, output_mode,None);
     write_distances_to_file(
         distances,
         &mut output,
@@ -106,7 +106,7 @@ pub fn test_output_phylip_full() {
 
     let mut data_map = read_and_parse_fasta(input, input_format).unwrap();
     remove_identical_columns(&mut data_map);
-    let distances = compute_distances(&data_map, maxdist, output_mode);
+    let distances = compute_distances(&data_map, maxdist, output_mode,None);
     write_distances_to_file(
         distances,
         &mut output,
@@ -136,7 +136,7 @@ pub fn test_input_cgmlst_hash() {
 
     let mut data_map = read_and_parse_tabular(input, input_format, input_sep, false).unwrap();
     remove_identical_columns(&mut data_map);
-    let distances = compute_distances(&data_map, maxdist, output_mode);
+    let distances = compute_distances(&data_map, maxdist, output_mode,None);
     write_distances_to_file(
         distances,
         &mut output,
@@ -166,7 +166,7 @@ pub fn test_input_cgmlst_hash_full() {
 
     let mut data_map = read_and_parse_tabular(input, input_format, input_sep, false).unwrap();
     remove_identical_columns(&mut data_map);
-    let distances = compute_distances(&data_map, maxdist, output_mode);
+    let distances = compute_distances(&data_map, maxdist, output_mode,None);
     write_distances_to_file(
         distances,
         &mut output,
@@ -196,11 +196,11 @@ pub fn test_remove_identical() {
     // assert_eq!(data_map, data_map_with_removed_columns);
 
     let dist_original: Vec<_> =
-        compute_distances(&data_map, None, OutputMode::LowerTriangle).collect();
+        compute_distances(&data_map, None, OutputMode::LowerTriangle,None).collect();
     let dist_removed: Vec<_> = compute_distances(
         &data_map_with_removed_columns,
         None,
-        OutputMode::LowerTriangle,
+        OutputMode::LowerTriangle,None
     )
     .collect();
 

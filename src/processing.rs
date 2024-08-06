@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::error::Error;
 use std::io::{BufRead, BufWriter, Write};
+use std::collections::HashMap;
 
 use bio::io::fasta;
 use clap::ValueEnum;
@@ -78,6 +79,31 @@ pub fn read_and_parse_fasta<R: BufRead>(
     Ok(data_vec)
 }
 
+pub fn read_and_parse_tabular_distances<'a, R: BufRead>(
+    reader: R,
+    separator: char,
+) -> Result<HashMap<(String, String), usize>, Box<dyn Error>> {
+    let mut distances = HashMap::new();
+    for line in reader.lines() {
+        let line = line?;
+        let mut fields = line.split(separator);
+        let id1 = match fields.next() {
+            Some(id) => id.into(),
+            None => return Err("Missing ID field at start of line".into()),
+        };
+        let id2 = match fields.next() {
+            Some(id) => id.into(),
+            None => return Err("Missing ID field at start of line".into()),
+        };
+        let dist = match fields.next() {
+            Some(dist) => dist.parse()?,
+            None => return Err("Missing distance field".into()),
+        };
+        distances.insert((id1, id2), dist);
+    }
+    Ok(distances)
+}
+
 pub fn remove_identical_columns<X>(data_map: &mut Vec<(X, Vec<SupportedType>)>) -> usize {
     let (longest_vec_index, longest_len) = data_map
         .iter()
@@ -108,11 +134,14 @@ pub fn remove_identical_columns<X>(data_map: &mut Vec<(X, Vec<SupportedType>)>) 
     to_remove.len()
 }
 
-pub fn compute_distances(
-    data_map: &[(String, Vec<impl PartialEq + Clone + std::marker::Sync>)],
+
+
+pub fn compute_distances<'a>(
+    data_map: &'a [(String, Vec<impl PartialEq + Clone + std::marker::Sync>)],
     maxdist: Option<usize>,
     output_mode: OutputMode,
-) -> impl Iterator<Item = (&str, &str, usize)> + Clone {
+    already_computed: Option<&'a HashMap<(&'a str, &'a str), usize>>,
+) -> impl Iterator<Item = (&'a str, &'a str, usize)> + Clone {
     let len = data_map.len();
 
     (0..len)
@@ -125,7 +154,14 @@ pub fn compute_distances(
             (0..max_j).into_par_iter().map(move |j| {
                 let (id1, row1) = &data_map[i];
                 let (id2, row2) = &data_map[j];
-                let dist = compute_distance_eq(row1, row2, maxdist);
+
+                let dist: usize = match already_computed {
+                    Some(distances) => match distances.get(&(id1.as_str(), id2.as_str())){
+                        Some(dist) => *dist,
+                        None => compute_distance_eq(row1, row2, maxdist),
+                    },
+                    None => compute_distance_eq(row1, row2, maxdist),
+                };
                 (id1.as_str(), id2.as_str(), dist)
             })
         })
@@ -328,8 +364,8 @@ mod tests {
 
         // test that the distances are also the same
         let distances_original: Vec<_> =
-            compute_distances(&data_map_original, None, OutputMode::Full).collect();
-        let distances: Vec<_> = compute_distances(&data_map, None, OutputMode::Full).collect();
+            compute_distances(&data_map_original, None, OutputMode::Full, None).collect();
+        let distances: Vec<_> = compute_distances(&data_map, None, OutputMode::Full, None).collect();
 
         assert_eq!(distances_original, distances);
     }

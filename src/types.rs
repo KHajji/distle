@@ -1,6 +1,5 @@
 use clap::ValueEnum;
 use std::fmt::Debug;
-use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Clone, Copy, ValueEnum)]
 pub enum InputFormat {
@@ -113,11 +112,23 @@ impl PartialEq for Nucleotide {
 
 impl From<u8> for Nucleotide {
     fn from(value: u8) -> Self {
-        let c = value as char;
-        Self::from_str(&c.to_string()).unwrap()
+        // Static lookup table for nucleotide values
+        static LUT: [u8; 256] = {
+            let mut lut = [0; 256];
+            lut[b'a' as usize] = b'a';
+            lut[b'c' as usize] = b'c';
+            lut[b'g' as usize] = b'g';
+            lut[b't' as usize] = b't';
+            lut[b'A' as usize] = b'a';
+            lut[b'C' as usize] = b'c';
+            lut[b'G' as usize] = b'g';
+            lut[b'T' as usize] = b't';
+            lut
+        };
+
+        Nucleotide(LUT[value as usize])
     }
 }
-
 #[derive(Debug, Clone, Copy)]
 pub struct NucleotideAll(u8);
 
@@ -136,8 +147,7 @@ impl std::str::FromStr for NucleotideAll {
 // implement construction from u8
 impl From<u8> for NucleotideAll {
     fn from(value: u8) -> Self {
-        let c = value as char;
-        Self::from_str(&c.to_string()).unwrap()
+        Self(value.to_ascii_lowercase())
     }
 }
 
@@ -150,6 +160,7 @@ impl PartialEq for NucleotideAll {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
 
     #[test]
     fn test_chewbbaca_integer() {

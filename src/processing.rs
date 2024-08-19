@@ -6,9 +6,8 @@ use std::str::FromStr;
 
 use bio::io::fasta;
 use clap::ValueEnum;
+use rayon::prelude::*;
 
-use crate::types::Nucleotide;
-use crate::types::NucleotideAll;
 use crate::types::{InputFormat, InputMatrix, SupportedTypeVec};
 
 #[derive(Debug, PartialEq, Clone, Copy, ValueEnum)]
@@ -50,12 +49,8 @@ pub fn read_and_parse_tabular<R: BufRead>(
         let id = id.to_string();
 
         let row_data = match input_format {
-            InputFormat::Cgmlst => {
-                SupportedTypeVec::Cgmlst(parse_fields(fields)?)
-            }
-            InputFormat::CgmlstHash => {
-                SupportedTypeVec::SHA1Hash(parse_fields(fields)?)
-            }
+            InputFormat::Cgmlst => SupportedTypeVec::Cgmlst(parse_fields(fields)?),
+            InputFormat::CgmlstHash => SupportedTypeVec::SHA1Hash(parse_fields(fields)?),
             _ => return Err("Input format not implemented".into()),
         };
 
@@ -88,9 +83,7 @@ pub fn read_and_parse_fasta<R: BufRead>(
         let id = record.id().to_string();
 
         let row_data = match input_format {
-            InputFormat::Fasta => {
-                SupportedTypeVec::Nucleotide(parse_fasta_seq(record.seq())?)
-            }
+            InputFormat::Fasta => SupportedTypeVec::Nucleotide(parse_fasta_seq(record.seq())?),
             InputFormat::FastaAll => {
                 SupportedTypeVec::NucleotideAll(parse_fasta_seq(record.seq())?)
             }
@@ -115,16 +108,17 @@ pub fn read_and_parse_tabular_distances<'a, R: BufRead>(
     for line in reader.lines() {
         let line = line?;
         let mut fields = line.split(separator);
-        let id1 = fields
+        let id1: String = fields
             .next()
             .ok_or("Missing ID field at start of line")?
             .into();
-        let id2 = fields
+        let id2: String = fields
             .next()
             .ok_or("Missing ID field at start of line")?
             .into();
         let dist = fields.next().ok_or("Missing distance field")?.parse()?;
-        distances.insert((id1, id2), dist);
+        distances.insert((id1.clone(), id2.clone()), dist);
+        distances.insert((id1, id2), dist); // Also insert the reverse in case the input has a different order
     }
     Ok(distances)
 }
@@ -167,22 +161,26 @@ pub fn compute_distances<'a>(
 ) -> impl Iterator<Item = (&'a str, &'a str, usize)> + Clone {
     let len = data_map.len();
 
-    (0..len).into_iter().flat_map(move |i| {
-        let max_j = match output_mode {
-            OutputMode::LowerTriangle => i,
-            OutputMode::Full => len,
-        };
-        (0..max_j).into_iter().map(move |j| {
-            let (id1, row1) = &data_map[i];
-            let (id2, row2) = &data_map[j];
+    (0..len)
+        .into_par_iter()
+        .flat_map(move |i| {
+            let max_j = match output_mode {
+                OutputMode::LowerTriangle => i,
+                OutputMode::Full => len,
+            };
+            (0..max_j).into_par_iter().map(move |j| {
+                let (id1, row1) = &data_map[i];
+                let (id2, row2) = &data_map[j];
 
-            let dist = already_computed
-                .and_then(|distances| distances.get(&(id1.as_str(), id2.as_str())).cloned())
-                .unwrap_or_else(|| calculate_distance(row1, row2, maxdist));
+                let dist = already_computed
+                    .and_then(|distances| distances.get(&(id1.as_str(), id2.as_str())).cloned())
+                    .unwrap_or_else(|| calculate_distance(row1, row2, maxdist));
 
-            (id1.as_str(), id2.as_str(), dist)
+                (id1.as_str(), id2.as_str(), dist)
+            })
         })
-    })
+        .collect::<Vec<_>>()
+        .into_iter()
 }
 
 fn calculate_distance(

@@ -6,7 +6,8 @@ Run with
 
 
 ```
-Usage: distle [OPTIONS] <INPUT> <OUTPUT>
+
+Usage: distle [OPTIONS] <INPUT> <OUTPUT> [PRECOMPUTED_DISTANCES]
 
 Arguments:
   <INPUT>
@@ -15,10 +16,13 @@ Arguments:
   <OUTPUT>
           The output file or '-' for stdout
 
+  [PRECOMPUTED_DISTANCES]
+          A tabular file with precomputed distances that don't have to be calculated again.
+
 Options:
   -i, --input-format <INPUT_FORMAT>
           The format of the input file
-          
+
           [default: fasta]
 
           Possible values:
@@ -29,7 +33,7 @@ Options:
 
   -o, --output-format <OUTPUT_FORMAT>
           The format of the output file
-          
+
           [default: tabular]
 
           Possible values:
@@ -38,17 +42,17 @@ Options:
 
       --input-sep <INPUT_SEP>
           The separator character for the input file. Relevant for tabular input files
-          
+
           [default: "\t"]
 
       --output-sep <OUTPUT_SEP>
           The separator character for the output file
-          
+
           [default: "\t"]
 
   -m, --output-mode <OUTPUT_MODE>
           The output mode
-          
+
           [default: lower-triangle]
 
           Possible values:

@@ -1,16 +1,16 @@
-use std::collections::HashSet;
+use core::panic;
+use std::collections::HashMap;
 use std::error::Error;
 use std::io::{BufRead, BufWriter, Write};
-use std::collections::HashMap;
+use std::str::FromStr;
 
 use bio::io::fasta;
 use clap::ValueEnum;
-use rayon::prelude::*;
 
-use crate::types::InputFormat;
-use crate::types::SupportedType;
+use crate::types::Nucleotide;
+use crate::types::NucleotideAll;
+use crate::types::{InputFormat, InputMatrix, SupportedTypeVec};
 
-type InputMatrix = Vec<(String, Vec<SupportedType>)>;
 #[derive(Debug, PartialEq, Clone, Copy, ValueEnum)]
 pub enum OutputMode {
     /// Only output the lower triangle of the distance matrix since it is diagonally symmetric
@@ -33,7 +33,6 @@ pub fn read_and_parse_tabular<R: BufRead>(
     separator: char,
     skip_header: bool,
 ) -> Result<InputMatrix, Box<dyn Error>> {
-    // let reader = BufReader::new(reader);
     let mut lines = reader.lines();
 
     if skip_header {
@@ -45,17 +44,36 @@ pub fn read_and_parse_tabular<R: BufRead>(
     for line in lines {
         let line = line?;
         let mut fields = line.split(separator);
-        let id = match fields.next() {
-            Some(id) => String::from(id),
-            None => return Err("Missing ID field at start of line".into()),
+        let id = fields
+            .next()
+            .ok_or_else(|| "Missing ID field at the start of the line")?;
+        let id = id.to_string();
+
+        let row_data = match input_format {
+            InputFormat::Cgmlst => {
+                SupportedTypeVec::Cgmlst(parse_fields(fields)?)
+            }
+            InputFormat::CgmlstHash => {
+                SupportedTypeVec::SHA1Hash(parse_fields(fields)?)
+            }
+            _ => return Err("Input format not implemented".into()),
         };
-        let row_data = fields
-            .map(|s| SupportedType::from_str(s, input_format))
-            .collect::<Result<Vec<_>, _>>()?;
+
         data_vec.push((id, row_data));
     }
 
     Ok(data_vec)
+}
+
+fn parse_fields<'a, I, T>(fields: I) -> Result<Vec<T>, Box<dyn Error>>
+where
+    I: Iterator<Item = &'a str>,
+    T: FromStr,
+    T::Err: Error + 'static,
+{
+    fields
+        .map(|s| s.parse::<T>().map_err(|e| Box::new(e) as Box<dyn Error>))
+        .collect()
 }
 
 pub fn read_and_parse_fasta<R: BufRead>(
@@ -68,15 +86,25 @@ pub fn read_and_parse_fasta<R: BufRead>(
     for record in reader.records() {
         let record = record?;
         let id = record.id().to_string();
-        let row_data = record
-            .seq()
-            .iter()
-            .map(|&u| SupportedType::from_u8(u, input_format))
-            .collect::<Result<Vec<_>, _>>()?;
+
+        let row_data = match input_format {
+            InputFormat::Fasta => {
+                SupportedTypeVec::Nucleotide(parse_fasta_seq(record.seq())?)
+            }
+            InputFormat::FastaAll => {
+                SupportedTypeVec::NucleotideAll(parse_fasta_seq(record.seq())?)
+            }
+            _ => return Err("Input format not implemented".into()),
+        };
+
         data_vec.push((id, row_data));
     }
 
     Ok(data_vec)
+}
+
+fn parse_fasta_seq<T: From<u8>>(seq: &[u8]) -> Result<Vec<T>, Box<dyn Error>> {
+    Ok(seq.iter().map(|&u| T::from(u)).collect())
 }
 
 pub fn read_and_parse_tabular_distances<'a, R: BufRead>(
@@ -87,86 +115,96 @@ pub fn read_and_parse_tabular_distances<'a, R: BufRead>(
     for line in reader.lines() {
         let line = line?;
         let mut fields = line.split(separator);
-        let id1 = match fields.next() {
-            Some(id) => id.into(),
-            None => return Err("Missing ID field at start of line".into()),
-        };
-        let id2 = match fields.next() {
-            Some(id) => id.into(),
-            None => return Err("Missing ID field at start of line".into()),
-        };
-        let dist = match fields.next() {
-            Some(dist) => dist.parse()?,
-            None => return Err("Missing distance field".into()),
-        };
+        let id1 = fields
+            .next()
+            .ok_or("Missing ID field at start of line")?
+            .into();
+        let id2 = fields
+            .next()
+            .ok_or("Missing ID field at start of line")?
+            .into();
+        let dist = fields.next().ok_or("Missing distance field")?.parse()?;
         distances.insert((id1, id2), dist);
     }
     Ok(distances)
 }
 
-pub fn remove_identical_columns<X>(data_map: &mut Vec<(X, Vec<SupportedType>)>) -> usize {
-    let (longest_vec_index, longest_len) = data_map
-        .iter()
-        .enumerate()
-        .map(|(i, (_, row))| (i, row.len()))
-        .max_by_key(|&(_, len)| len)
-        .unwrap_or((0, 0));
+// pub fn remove_identical_columns<X>(data_map: &mut Vec<(X, Vec<SupportedType>)>) -> usize {
+//     let (longest_vec_index, longest_len) = data_map
+//         .iter()
+//         .enumerate()
+//         .map(|(i, (_, row))| (i, row.len()))
+//         .max_by_key(|&(_, len)| len)
+//         .unwrap_or((0, 0));
 
-    let to_remove: HashSet<_> = (0..longest_len)
-        .rev()
-        .filter(|&i| {
-            let longest = data_map[longest_vec_index].1.get(i);
-            data_map.iter().all(|(_, row)| match (longest, row.get(i)) {
-                (Some(f), Some(r)) => SupportedType::eq_whithout_exeptions(f, r),
-                _ => false,
-            })
-        })
-        .collect();
+//     let to_remove: HashSet<_> = (0..longest_len)
+//         .rev()
+//         .filter(|&i| {
+//             let longest = data_map[longest_vec_index].1.get(i);
+//             data_map.iter().all(|(_, row)| match (longest, row.get(i)) {
+//                 (Some(f), Some(r)) => SupportedType::eq_whithout_exeptions(f, r),
+//                 _ => false,
+//             })
+//         })
+//         .collect();
 
-    for row in data_map {
-        let mut index = 0;
-        row.1.retain(|_| {
-            let keep = !to_remove.contains(&index);
-            index += 1;
-            keep
-        });
-    }
-    to_remove.len()
-}
-
-
+//     for row in data_map {
+//         let mut index = 0;
+//         row.1.retain(|_| {
+//             let keep = !to_remove.contains(&index);
+//             index += 1;
+//             keep
+//         });
+//     }
+//     to_remove.len()
+// }
 
 pub fn compute_distances<'a>(
-    data_map: &'a [(String, Vec<impl PartialEq + Clone + std::marker::Sync>)],
+    data_map: &'a InputMatrix,
     maxdist: Option<usize>,
     output_mode: OutputMode,
     already_computed: Option<&'a HashMap<(&'a str, &'a str), usize>>,
 ) -> impl Iterator<Item = (&'a str, &'a str, usize)> + Clone {
     let len = data_map.len();
 
-    (0..len)
-        .into_par_iter()
-        .flat_map(move |i| {
-            let max_j = match output_mode {
-                OutputMode::LowerTriangle => i,
-                OutputMode::Full => len,
-            };
-            (0..max_j).into_par_iter().map(move |j| {
-                let (id1, row1) = &data_map[i];
-                let (id2, row2) = &data_map[j];
+    (0..len).into_iter().flat_map(move |i| {
+        let max_j = match output_mode {
+            OutputMode::LowerTriangle => i,
+            OutputMode::Full => len,
+        };
+        (0..max_j).into_iter().map(move |j| {
+            let (id1, row1) = &data_map[i];
+            let (id2, row2) = &data_map[j];
 
-                let dist: usize = match already_computed {
-                    Some(distances) => match distances.get(&(id1.as_str(), id2.as_str())){
-                        Some(dist) => *dist,
-                        None => compute_distance_eq(row1, row2, maxdist),
-                    },
-                    None => compute_distance_eq(row1, row2, maxdist),
-                };
-                (id1.as_str(), id2.as_str(), dist)
-            })
+            let dist = already_computed
+                .and_then(|distances| distances.get(&(id1.as_str(), id2.as_str())).cloned())
+                .unwrap_or_else(|| calculate_distance(row1, row2, maxdist));
+
+            (id1.as_str(), id2.as_str(), dist)
         })
-        .collect::<Vec<_>>()
-        .into_iter()
+    })
+}
+
+fn calculate_distance(
+    row1: &SupportedTypeVec,
+    row2: &SupportedTypeVec,
+    maxdist: Option<usize>,
+) -> usize {
+    match (row1, row2) {
+        (SupportedTypeVec::Nucleotide(r1), SupportedTypeVec::Nucleotide(r2)) => {
+            compute_distance_eq(r1, r2, maxdist)
+        }
+        (SupportedTypeVec::NucleotideAll(r1), SupportedTypeVec::NucleotideAll(r2)) => {
+            compute_distance_eq(r1, r2, maxdist)
+        }
+        (SupportedTypeVec::Cgmlst(r1), SupportedTypeVec::Cgmlst(r2)) => {
+            compute_distance_eq(r1, r2, maxdist)
+        }
+        (SupportedTypeVec::SHA1Hash(r1), SupportedTypeVec::SHA1Hash(r2)) => {
+            compute_distance_eq(r1, r2, maxdist)
+        }
+        _ => panic!("Unsupported type"),
+    }
 }
 
 fn compute_distance_eq<T: PartialEq>(row1: &[T], row2: &[T], maxdist: Option<usize>) -> usize {
@@ -335,38 +373,38 @@ mod tests {
         assert_eq!(compute_distance_eq(&row2, &row3, None), 6);
     }
 
-    #[test]
-    fn test_remove_identical_columns() {
-        let a = SupportedType::NucleotideAll(NucleotideAll::from_str("A").unwrap());
-        let c = SupportedType::NucleotideAll(NucleotideAll::from_str("C").unwrap());
-        let g = SupportedType::NucleotideAll(NucleotideAll::from_str("G").unwrap());
-        let t = SupportedType::NucleotideAll(NucleotideAll::from_str("T").unwrap());
-        let n = SupportedType::NucleotideAll(NucleotideAll::from_str("n").unwrap());
-        let d = SupportedType::NucleotideAll(NucleotideAll::from_str("-").unwrap());
+    // #[test]
+    // fn test_remove_identical_columns() {
+    //     let a = SupportedType::NucleotideAll(NucleotideAll::from_str("A").unwrap());
+    //     let c = SupportedType::NucleotideAll(NucleotideAll::from_str("C").unwrap());
+    //     let g = SupportedType::NucleotideAll(NucleotideAll::from_str("G").unwrap());
+    //     let t = SupportedType::NucleotideAll(NucleotideAll::from_str("T").unwrap());
+    //     let n = SupportedType::NucleotideAll(NucleotideAll::from_str("n").unwrap());
+    //     let d = SupportedType::NucleotideAll(NucleotideAll::from_str("-").unwrap());
 
-        let mut data_map = vec![
-            (String::from("id1"), vec![a, c, g, t, n, d]),
-            (String::from("id2"), vec![a, n, d, d, n, n]),
-            (String::from("id3"), vec![a, c, g, t, n, d]),
-        ];
-        let data_map_original = data_map.clone();
-        let expected_number_removed = 2;
-        let number_removed = remove_identical_columns(&mut data_map);
+    //     let mut data_map = vec![
+    //         (String::from("id1"), vec![a, c, g, t, n, d]),
+    //         (String::from("id2"), vec![a, n, d, d, n, n]),
+    //         (String::from("id3"), vec![a, c, g, t, n, d]),
+    //     ];
+    //     let data_map_original = data_map.clone();
+    //     let expected_number_removed = 2;
+    //     let number_removed = remove_identical_columns(&mut data_map);
 
-        let expected_data_map = vec![
-            (String::from("id1"), vec![c, g, t, d]),
-            (String::from("id2"), vec![n, d, d, n]),
-            (String::from("id3"), vec![c, g, t, d]),
-        ];
+    //     let expected_data_map = vec![
+    //         (String::from("id1"), vec![c, g, t, d]),
+    //         (String::from("id2"), vec![n, d, d, n]),
+    //         (String::from("id3"), vec![c, g, t, d]),
+    //     ];
 
-        assert_eq!(number_removed, expected_number_removed);
-        assert_eq!(data_map, expected_data_map);
+    //     assert_eq!(number_removed, expected_number_removed);
+    //     assert_eq!(data_map, expected_data_map);
 
-        // test that the distances are also the same
-        let distances_original: Vec<_> =
-            compute_distances(&data_map_original, None, OutputMode::Full, None).collect();
-        let distances: Vec<_> = compute_distances(&data_map, None, OutputMode::Full, None).collect();
+    //     // test that the distances are also the same
+    //     let distances_original: Vec<_> =
+    //         compute_distances(&data_map_original, None, OutputMode::Full, None).collect();
+    //     let distances: Vec<_> = compute_distances(&data_map, None, OutputMode::Full, None).collect();
 
-        assert_eq!(distances_original, distances);
-    }
+    //     assert_eq!(distances_original, distances);
+    // }
 }

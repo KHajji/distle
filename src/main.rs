@@ -1,9 +1,7 @@
-use core::panic;
-use std::error::Error;
-use std::fmt::format;
-use std::io::{stdin, stdout, BufRead, BufReader, BufWriter, Read, Write};
-use std::time::Instant;
 use std::collections::HashMap;
+use std::error::Error;
+use std::io::{stdin, stdout, BufReader, BufWriter, Read, Write};
+use std::time::Instant;
 
 use clap::Parser;
 use env_logger::Env;
@@ -13,8 +11,8 @@ mod processing;
 mod types;
 
 use processing::{
-    compute_distances, read_and_parse_fasta, read_and_parse_tabular, remove_identical_columns, read_and_parse_tabular_distances,
-    write_distances_to_file, OutputFormat, OutputMode,
+    compute_distances, read_and_parse_fasta, read_and_parse_tabular,
+    read_and_parse_tabular_distances, write_distances_to_file, OutputFormat, OutputMode,
 };
 use types::InputFormat;
 
@@ -35,7 +33,7 @@ struct Cli {
     #[arg(value_enum, short = 'o', long, default_value = "tabular")]
     output_format: OutputFormat,
 
-    /// A file with precomputed distances that don't have to be calculated again. The file should be in the same format as the output file. 
+    /// A file with precomputed distances that don't have to be calculated again. The file should be in the same format as the output file.
     precomputed_distances: Option<String>,
 
     /// The separator character for the input file. Relevant for tabular input files.
@@ -86,44 +84,52 @@ fn main() -> Result<(), Box<dyn Error>> {
     debug!("Cli options: {:?}", opts);
 
     let start = Instant::now();
-    let mut data_map = match opts.input_format {
+
+    let data_map = match opts.input_format {
         InputFormat::Fasta | InputFormat::FastaAll => {
             read_and_parse_fasta(reader, opts.input_format)?
         }
-        _ => read_and_parse_tabular(reader, opts.input_format, opts.input_sep, opts.skip_header)?,
+        InputFormat::Cgmlst | InputFormat::CgmlstHash => {
+            read_and_parse_tabular(reader, opts.input_format, opts.input_sep, opts.skip_header)?
+        }
     };
     debug!("Reading time: {:?}", start.elapsed());
     let start = Instant::now();
 
     // Remove columns that are all the same
-    let n_removed = remove_identical_columns(&mut data_map);
+    // let n_removed = remove_identical_columns(&mut data_map);
 
-    debug!(
-        "Removed {:?} columns that are all the same: {:?}",
-        n_removed,
-        start.elapsed()
-    );
+    // debug!(
+    //     "Removed {:?} columns that are all the same: {:?}",
+    //     n_removed,
+    //     start.elapsed()
+    // );
+    // let start = Instant::now();
 
     info!("Computing distances and writing to file: {}", &opts.output);
 
-    
-    
-    let precomputed_distances = if let Some(precomputed_distances_file) = &opts.precomputed_distances {
-        let reader: Box<dyn Read> = Box::new(std::fs::File::open(precomputed_distances_file)?);
-        let reader = BufReader::new(reader);
-    
-        read_and_parse_tabular_distances(reader, opts.output_sep)?
-    } else {
-        HashMap::new()
-    };
+    let precomputed_distances =
+        if let Some(precomputed_distances_file) = &opts.precomputed_distances {
+            let reader: Box<dyn Read> = Box::new(std::fs::File::open(precomputed_distances_file)?);
+            let reader = BufReader::new(reader);
+
+            read_and_parse_tabular_distances(reader, opts.output_sep)?
+        } else {
+            HashMap::new()
+        };
 
     let mut actual_precomputed_distances = HashMap::new();
     for ((key1, key2), value) in precomputed_distances.iter() {
-        actual_precomputed_distances.insert((key1.as_str(), key2.as_str()), value.clone());        
+        actual_precomputed_distances.insert((key1.as_str(), key2.as_str()), value.clone());
     }
 
     // Compute the pairwise distances
-    let distances = compute_distances(&data_map, opts.maxdist, opts.output_mode, Some(&actual_precomputed_distances));
+    let distances = compute_distances(
+        &data_map,
+        opts.maxdist,
+        opts.output_mode,
+        Some(&actual_precomputed_distances),
+    );
 
     let writer: Box<dyn Write> = if opts.output == "-" {
         Box::new(stdout())
@@ -132,6 +138,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let mut writer = BufWriter::new(writer);
+    // // Cancel the program and exit
+    // debug!("Early exit");
+    // return Ok(());
 
     write_distances_to_file(
         distances,

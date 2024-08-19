@@ -1,4 +1,5 @@
 use clap::ValueEnum;
+use std::fmt::Debug;
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Clone, Copy, ValueEnum)]
@@ -13,61 +14,33 @@ pub enum InputFormat {
     FastaAll,
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum SupportedType {
-    ChewBBACAinteger(ChewBBACAinteger),
-    SHA1Hash(SHA1Hash),
-    Nucleotide(Nucleotide),
-    NucleotideAll(NucleotideAll),
+pub type InputMatrix = Vec<(String, SupportedTypeVec)>;
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum SupportedTypeVec {
+    Nucleotide(Vec<Nucleotide>),
+    NucleotideAll(Vec<NucleotideAll>),
+    Cgmlst(Vec<ChewBBACAinteger>),
+    SHA1Hash(Vec<SHA1Hash>),
 }
 
-impl SupportedType {
-    pub fn from_str(
-        s: &str,
-        input_format: InputFormat,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
-        match input_format {
-            InputFormat::Cgmlst => Ok(SupportedType::ChewBBACAinteger(ChewBBACAinteger::from_str(
-                s,
-            )?)),
-            InputFormat::CgmlstHash => Ok(SupportedType::SHA1Hash(SHA1Hash::from_str(s)?)),
-            InputFormat::Fasta => Ok(SupportedType::Nucleotide(Nucleotide::from_str(s)?)),
-            InputFormat::FastaAll => Ok(SupportedType::NucleotideAll(NucleotideAll::from_str(s)?)),
-        }
-    }
+// #[derive(Debug, PartialEq, Clone, Copy)]
+// pub enum SupportedType<T> {
+//     Value(T),
+// }
 
-    pub fn from_u8(u: u8, input_format: InputFormat) -> Result<Self, Box<dyn std::error::Error>> {
-        match input_format {
-            InputFormat::Fasta => Ok(SupportedType::Nucleotide(Nucleotide::from(u))),
-            InputFormat::FastaAll => Ok(SupportedType::NucleotideAll(NucleotideAll::from(u))),
-            x => Err(format!("Type not supported: {:?}", x).into()),
-        }
-    }
-
-    /// Compare two SupportedType without exceptions that should be the same (e.g. 0 for chewbbaca and N for fasta)
-    /// This is important for the remove_identical_columns function
-    pub fn eq_whithout_exeptions(&self, other: &Self) -> bool {
-        match (self, other) {
-            (
-                SupportedType::ChewBBACAinteger(ChewBBACAinteger(x)),
-                SupportedType::ChewBBACAinteger(ChewBBACAinteger(y)),
-            ) => x == y,
-            (SupportedType::SHA1Hash(SHA1Hash(x)), SupportedType::SHA1Hash(SHA1Hash(y))) => x == y,
-            (
-                SupportedType::Nucleotide(Nucleotide(x)),
-                SupportedType::Nucleotide(Nucleotide(y)),
-            ) => x == y,
-            (
-                SupportedType::NucleotideAll(NucleotideAll(x)),
-                SupportedType::NucleotideAll(NucleotideAll(y)),
-            ) => x == y,
-            _ => panic!(
-                "Types do not match while comparing: {:?} and {:?}",
-                self, other
-            ),
-        }
-    }
-}
+// impl<T> SupportedType<T>
+// where
+//     T: FromStr + std::fmt::Debug,
+// {
+//     pub fn from_str(s: &str) -> Result<Self, Box<dyn std::error::Error>>
+//     where
+//         <T as FromStr>::Err: 'static + std::error::Error,
+//     {
+//         let value = T::from_str(s)?;
+//         Ok(SupportedType::Value(value))
+//     }
+// }
 
 #[derive(Debug, Clone, Copy)]
 pub struct ChewBBACAinteger(u16);

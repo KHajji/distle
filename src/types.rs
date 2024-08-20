@@ -118,12 +118,12 @@ impl From<u8> for Nucleotide {
             let mut lut = [Nucleotide(15); 256];
             lut[b'a' as usize] = Nucleotide(1);
             lut[b'c' as usize] = Nucleotide(2);
-            lut[b'g' as usize] = Nucleotide(3);
-            lut[b't' as usize] = Nucleotide(4);
+            lut[b'g' as usize] = Nucleotide(4);
+            lut[b't' as usize] = Nucleotide(8);
             lut[b'A' as usize] = Nucleotide(1);
             lut[b'C' as usize] = Nucleotide(2);
-            lut[b'G' as usize] = Nucleotide(3);
-            lut[b'T' as usize] = Nucleotide(4);
+            lut[b'G' as usize] = Nucleotide(4);
+            lut[b'T' as usize] = Nucleotide(8);
             lut
         };
 

@@ -33,7 +33,8 @@ struct Cli {
     #[arg(value_enum, short = 'o', long, default_value = "tabular")]
     output_format: OutputFormat,
 
-    /// A file with precomputed distances that don't have to be calculated again. The file should be in the same format as the output file.
+    /// A file with precomputed distances that don't have to be calculated again. The file should be in tabular long format and have the separator as specified by the output-sep flag.
+    #[arg(long)]
     precomputed_distances: Option<String>,
 
     /// The separator character for the input file. Relevant for tabular input files.

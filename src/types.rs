@@ -97,38 +97,40 @@ impl std::str::FromStr for Nucleotide {
         match s {
             "A" | "a" => Ok(Nucleotide(1)),
             "C" | "c" => Ok(Nucleotide(2)),
-            "G" | "g" => Ok(Nucleotide(3)),
-            "T" | "t" => Ok(Nucleotide(4)),
-            _ => Ok(Nucleotide(0)),
+            "G" | "g" => Ok(Nucleotide(4)),
+            "T" | "t" => Ok(Nucleotide(8)),
+            _ => Ok(Nucleotide(15)),
         }
     }
 }
 
 impl PartialEq for Nucleotide {
     fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0 || self.0 == 0 || other.0 == 0
+        // this implementation is specific to the values of the Nucleotide enum
+        (self.0 & other.0) != 0
     }
 }
 
 impl From<u8> for Nucleotide {
     fn from(value: u8) -> Self {
         // Static lookup table for nucleotide values
-        static LUT: [u8; 256] = {
-            let mut lut = [0; 256];
-            lut[b'a' as usize] = b'a';
-            lut[b'c' as usize] = b'c';
-            lut[b'g' as usize] = b'g';
-            lut[b't' as usize] = b't';
-            lut[b'A' as usize] = b'a';
-            lut[b'C' as usize] = b'c';
-            lut[b'G' as usize] = b'g';
-            lut[b'T' as usize] = b't';
+        static LUT: [Nucleotide; 256] = {
+            let mut lut = [Nucleotide(15); 256];
+            lut[b'a' as usize] = Nucleotide(1);
+            lut[b'c' as usize] = Nucleotide(2);
+            lut[b'g' as usize] = Nucleotide(3);
+            lut[b't' as usize] = Nucleotide(4);
+            lut[b'A' as usize] = Nucleotide(1);
+            lut[b'C' as usize] = Nucleotide(2);
+            lut[b'G' as usize] = Nucleotide(3);
+            lut[b'T' as usize] = Nucleotide(4);
             lut
         };
 
-        Nucleotide(LUT[value as usize])
+        LUT[value as usize]
     }
 }
+
 #[derive(Debug, Clone, Copy)]
 pub struct NucleotideAll(u8);
 
@@ -139,7 +141,7 @@ impl std::str::FromStr for NucleotideAll {
         // get first char from str and put it in
         s.chars()
             .next()
-            .map(|c| Self(c as u8))
+            .map(|c| Self(c.to_ascii_lowercase() as u8))
             .ok_or("NucleotideAll::from_str: could not parse first char from string")
     }
 }
@@ -190,46 +192,39 @@ mod tests {
     fn test_nucleotide() {
         let x = Nucleotide::from_str("A").unwrap();
         assert_eq!(x, Nucleotide(1));
+        assert_ne!(x, Nucleotide::from(b'C'));
         let x = Nucleotide::from_str("C").unwrap();
         assert_eq!(x, Nucleotide(2));
         let x = Nucleotide::from_str("G").unwrap();
-        assert_eq!(x, Nucleotide(3));
-        let x = Nucleotide::from_str("T").unwrap();
         assert_eq!(x, Nucleotide(4));
+        let x = Nucleotide::from_str("T").unwrap();
+        assert_eq!(x, Nucleotide(8));
         let x = Nucleotide::from_str("a").unwrap();
         assert_eq!(x, Nucleotide(1));
         let x = Nucleotide::from_str("c").unwrap();
         assert_eq!(x, Nucleotide(2));
         let x = Nucleotide::from_str("g").unwrap();
-        assert_eq!(x, Nucleotide(3));
-        let x = Nucleotide::from_str("t").unwrap();
         assert_eq!(x, Nucleotide(4));
+        let x = Nucleotide::from_str("t").unwrap();
+        assert_eq!(x, Nucleotide(8));
         let x = Nucleotide::from_str("X").unwrap();
-        assert_eq!(x, Nucleotide(0));
-        assert_eq!(x, Nucleotide::from(1));
-        assert_eq!(x, Nucleotide::from(2));
-        assert_eq!(x, Nucleotide::from(3));
-        assert_eq!(x, Nucleotide::from(4));
+        assert_eq!(x, Nucleotide(15));
+        assert_eq!(x, Nucleotide::from(b'a'));
+        assert_eq!(x, Nucleotide::from(b'c'));
+        assert_eq!(x, Nucleotide::from(b'g'));
+        assert_eq!(x, Nucleotide::from(b't'));
     }
 
     #[test]
     fn test_nucleotide_all() {
         let x = NucleotideAll::from_str("A").unwrap();
-        assert_eq!(x, NucleotideAll(65));
+        assert_eq!(x, NucleotideAll::from(b'a'));
         let x = NucleotideAll::from_str("C").unwrap();
-        assert_eq!(x, NucleotideAll(67));
+        assert_eq!(x, NucleotideAll::from(b'c'));
         let x = NucleotideAll::from_str("G").unwrap();
-        assert_eq!(x, NucleotideAll(71));
+        assert_eq!(x, NucleotideAll::from(b'g'));
         let x = NucleotideAll::from_str("T").unwrap();
-        assert_eq!(x, NucleotideAll(84));
-        let x = NucleotideAll::from_str("a").unwrap();
-        assert_eq!(x, NucleotideAll(97));
-        let x = NucleotideAll::from_str("c").unwrap();
-        assert_eq!(x, NucleotideAll(99));
-        let x = NucleotideAll::from_str("g").unwrap();
-        assert_eq!(x, NucleotideAll(103));
-        let x = NucleotideAll::from_str("t").unwrap();
-        assert_eq!(x, NucleotideAll(116));
+        assert_eq!(x, NucleotideAll::from(b't'));
         let x = NucleotideAll::from_str("X").unwrap();
         assert_ne!(x, NucleotideAll::from_str("a").unwrap());
         assert_ne!(x, NucleotideAll::from_str("c").unwrap());

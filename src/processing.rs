@@ -206,11 +206,18 @@ fn calculate_distance(
 }
 
 fn compute_distance_eq<T: PartialEq>(row1: &[T], row2: &[T], maxdist: Option<usize>) -> usize {
-    row1.iter()
-        .zip(row2.iter())
-        .filter(|(x, y)| x != y)
-        .take(maxdist.unwrap_or(usize::MAX))
-        .count()
+    let maxdist = maxdist.unwrap_or(usize::MAX);
+    let mut count = 0;
+
+    for (x, y) in row1.iter().zip(row2.iter()) {
+        if x != y {
+            count += 1;
+            if count >= maxdist {
+                break;
+            }
+        }
+    }
+    count
 }
 
 pub fn write_distances_to_file<'a, W: Write>(

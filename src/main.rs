@@ -5,6 +5,8 @@ use std::time::Instant;
 use clap::Parser;
 use env_logger::Env;
 use log::{debug, info};
+use rayon::ThreadPoolBuilder;
+
 
 mod processing;
 mod types;
@@ -48,6 +50,10 @@ struct Cli {
     #[arg(short = 'd', long, default_value = None)]
     maxdist: Option<usize>,
 
+    /// Number of threads to use.
+    #[arg(short = 't', long, default_value_t = 1)]
+    threads: usize,
+
     /// Skip the header line of the input file. Relevant for tabular input files.
     #[arg(short = 's', long)]
     skip_header: bool,
@@ -78,6 +84,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // print command line arguments
     debug!("Cli options: {:?}", opts);
+
+    // Set threads
+    ThreadPoolBuilder::new().num_threads(opts.threads).build_global().unwrap();
 
     let start = Instant::now();
     let mut data_map = match opts.input_format {

@@ -7,7 +7,7 @@ Build with
 ```cargo build -r```
 
 Run with 
-```./target/release/distle --args```
+```./target/release/distle --help```
 
 
 ```

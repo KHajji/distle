@@ -1,8 +1,13 @@
+![Conda Version](https://img.shields.io/conda/vn/bioconda/distle)
+![Static Badge](https://img.shields.io/badge/install%20with-docker-important.svg?style=flat&logo=docker&link=https%3A%2F%2Fquay.io%2Frepository%2Fbiocontainers%2Fdistle)
+
+
+
 Build with 
 ```cargo build -r```
 
 Run with 
-```./release/distle --args```
+```./target/release/distle --args```
 
 
 ```

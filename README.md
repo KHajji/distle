@@ -1,8 +1,13 @@
+![Conda Version](https://img.shields.io/conda/vn/bioconda/distle)
+![Static Badge](https://img.shields.io/badge/install%20with-docker-important.svg?style=flat&logo=docker&link=https%3A%2F%2Fquay.io%2Frepository%2Fbiocontainers%2Fdistle)
+
+
+
 Build with 
 ```cargo build -r```
 
 Run with 
-```./release/distle --args```
+```./target/release/distle --help```
 
 
 ```
@@ -35,6 +40,9 @@ Options:
           Possible values:
           - tabular: Output the distances in a tabular long format
           - phylip:  Output the distances in a Phylip format
+
+      --precomputed-distances <PRECOMPUTED_DISTANCES>
+          A file with precomputed distances that don't have to be calculated again. The file should be in tabular long format and have the separator as specified by the output-sep flag
 
       --input-sep <INPUT_SEP>
           The separator character for the input file. Relevant for tabular input files

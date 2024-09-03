@@ -1,5 +1,5 @@
 use clap::ValueEnum;
-use std::str::FromStr;
+use std::fmt::Debug;
 
 #[derive(Debug, PartialEq, Clone, Copy, ValueEnum)]
 pub enum InputFormat {
@@ -13,60 +13,14 @@ pub enum InputFormat {
     FastaAll,
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum SupportedType {
-    ChewBBACAinteger(ChewBBACAinteger),
-    SHA1Hash(SHA1Hash),
-    Nucleotide(Nucleotide),
-    NucleotideAll(NucleotideAll),
-}
+pub type InputMatrix = Vec<(String, SupportedTypeVec)>;
 
-impl SupportedType {
-    pub fn from_str(
-        s: &str,
-        input_format: InputFormat,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
-        match input_format {
-            InputFormat::Cgmlst => Ok(SupportedType::ChewBBACAinteger(ChewBBACAinteger::from_str(
-                s,
-            )?)),
-            InputFormat::CgmlstHash => Ok(SupportedType::SHA1Hash(SHA1Hash::from_str(s)?)),
-            InputFormat::Fasta => Ok(SupportedType::Nucleotide(Nucleotide::from_str(s)?)),
-            InputFormat::FastaAll => Ok(SupportedType::NucleotideAll(NucleotideAll::from_str(s)?)),
-        }
-    }
-
-    pub fn from_u8(u: u8, input_format: InputFormat) -> Result<Self, Box<dyn std::error::Error>> {
-        match input_format {
-            InputFormat::Fasta => Ok(SupportedType::Nucleotide(Nucleotide::from(u))),
-            InputFormat::FastaAll => Ok(SupportedType::NucleotideAll(NucleotideAll::from(u))),
-            x => Err(format!("Type not supported: {:?}", x).into()),
-        }
-    }
-
-    /// Compare two SupportedType without exceptions that should be the same (e.g. 0 for chewbbaca and N for fasta)
-    /// This is important for the remove_identical_columns function
-    pub fn eq_whithout_exeptions(&self, other: &Self) -> bool {
-        match (self, other) {
-            (
-                SupportedType::ChewBBACAinteger(ChewBBACAinteger(x)),
-                SupportedType::ChewBBACAinteger(ChewBBACAinteger(y)),
-            ) => x == y,
-            (SupportedType::SHA1Hash(SHA1Hash(x)), SupportedType::SHA1Hash(SHA1Hash(y))) => x == y,
-            (
-                SupportedType::Nucleotide(Nucleotide(x)),
-                SupportedType::Nucleotide(Nucleotide(y)),
-            ) => x == y,
-            (
-                SupportedType::NucleotideAll(NucleotideAll(x)),
-                SupportedType::NucleotideAll(NucleotideAll(y)),
-            ) => x == y,
-            _ => panic!(
-                "Types do not match while comparing: {:?} and {:?}",
-                self, other
-            ),
-        }
-    }
+#[derive(Debug, PartialEq, Clone)]
+pub enum SupportedTypeVec {
+    Nucleotide(Vec<Nucleotide>),
+    NucleotideAll(Vec<NucleotideAll>),
+    Cgmlst(Vec<ChewBBACAinteger>),
+    SHA1Hash(Vec<SHA1Hash>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -125,23 +79,37 @@ impl std::str::FromStr for Nucleotide {
         match s {
             "A" | "a" => Ok(Nucleotide(1)),
             "C" | "c" => Ok(Nucleotide(2)),
-            "G" | "g" => Ok(Nucleotide(3)),
-            "T" | "t" => Ok(Nucleotide(4)),
-            _ => Ok(Nucleotide(0)),
+            "G" | "g" => Ok(Nucleotide(4)),
+            "T" | "t" => Ok(Nucleotide(8)),
+            _ => Ok(Nucleotide(15)),
         }
     }
 }
 
 impl PartialEq for Nucleotide {
     fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0 || self.0 == 0 || other.0 == 0
+        // this implementation is specific to the values of the Nucleotide enum
+        (self.0 & other.0) != 0
     }
 }
 
 impl From<u8> for Nucleotide {
     fn from(value: u8) -> Self {
-        let c = value as char;
-        Self::from_str(&c.to_string()).unwrap()
+        // Static lookup table for nucleotide values
+        static LUT: [Nucleotide; 256] = {
+            let mut lut = [Nucleotide(15); 256];
+            lut[b'a' as usize] = Nucleotide(1);
+            lut[b'c' as usize] = Nucleotide(2);
+            lut[b'g' as usize] = Nucleotide(4);
+            lut[b't' as usize] = Nucleotide(8);
+            lut[b'A' as usize] = Nucleotide(1);
+            lut[b'C' as usize] = Nucleotide(2);
+            lut[b'G' as usize] = Nucleotide(4);
+            lut[b'T' as usize] = Nucleotide(8);
+            lut
+        };
+
+        LUT[value as usize]
     }
 }
 
@@ -155,7 +123,7 @@ impl std::str::FromStr for NucleotideAll {
         // get first char from str and put it in
         s.chars()
             .next()
-            .map(|c| Self(c as u8))
+            .map(|c| Self(c.to_ascii_lowercase() as u8))
             .ok_or("NucleotideAll::from_str: could not parse first char from string")
     }
 }
@@ -163,8 +131,7 @@ impl std::str::FromStr for NucleotideAll {
 // implement construction from u8
 impl From<u8> for NucleotideAll {
     fn from(value: u8) -> Self {
-        let c = value as char;
-        Self::from_str(&c.to_string()).unwrap()
+        Self(value.to_ascii_lowercase())
     }
 }
 
@@ -177,6 +144,7 @@ impl PartialEq for NucleotideAll {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
 
     #[test]
     fn test_chewbbaca_integer() {
@@ -206,46 +174,39 @@ mod tests {
     fn test_nucleotide() {
         let x = Nucleotide::from_str("A").unwrap();
         assert_eq!(x, Nucleotide(1));
+        assert_ne!(x, Nucleotide::from(b'C'));
         let x = Nucleotide::from_str("C").unwrap();
         assert_eq!(x, Nucleotide(2));
         let x = Nucleotide::from_str("G").unwrap();
-        assert_eq!(x, Nucleotide(3));
-        let x = Nucleotide::from_str("T").unwrap();
         assert_eq!(x, Nucleotide(4));
+        let x = Nucleotide::from_str("T").unwrap();
+        assert_eq!(x, Nucleotide(8));
         let x = Nucleotide::from_str("a").unwrap();
         assert_eq!(x, Nucleotide(1));
         let x = Nucleotide::from_str("c").unwrap();
         assert_eq!(x, Nucleotide(2));
         let x = Nucleotide::from_str("g").unwrap();
-        assert_eq!(x, Nucleotide(3));
-        let x = Nucleotide::from_str("t").unwrap();
         assert_eq!(x, Nucleotide(4));
+        let x = Nucleotide::from_str("t").unwrap();
+        assert_eq!(x, Nucleotide(8));
         let x = Nucleotide::from_str("X").unwrap();
-        assert_eq!(x, Nucleotide(0));
-        assert_eq!(x, Nucleotide::from(1));
-        assert_eq!(x, Nucleotide::from(2));
-        assert_eq!(x, Nucleotide::from(3));
-        assert_eq!(x, Nucleotide::from(4));
+        assert_eq!(x, Nucleotide(15));
+        assert_eq!(x, Nucleotide::from(b'a'));
+        assert_eq!(x, Nucleotide::from(b'c'));
+        assert_eq!(x, Nucleotide::from(b'g'));
+        assert_eq!(x, Nucleotide::from(b't'));
     }
 
     #[test]
     fn test_nucleotide_all() {
         let x = NucleotideAll::from_str("A").unwrap();
-        assert_eq!(x, NucleotideAll(65));
+        assert_eq!(x, NucleotideAll::from(b'a'));
         let x = NucleotideAll::from_str("C").unwrap();
-        assert_eq!(x, NucleotideAll(67));
+        assert_eq!(x, NucleotideAll::from(b'c'));
         let x = NucleotideAll::from_str("G").unwrap();
-        assert_eq!(x, NucleotideAll(71));
+        assert_eq!(x, NucleotideAll::from(b'g'));
         let x = NucleotideAll::from_str("T").unwrap();
-        assert_eq!(x, NucleotideAll(84));
-        let x = NucleotideAll::from_str("a").unwrap();
-        assert_eq!(x, NucleotideAll(97));
-        let x = NucleotideAll::from_str("c").unwrap();
-        assert_eq!(x, NucleotideAll(99));
-        let x = NucleotideAll::from_str("g").unwrap();
-        assert_eq!(x, NucleotideAll(103));
-        let x = NucleotideAll::from_str("t").unwrap();
-        assert_eq!(x, NucleotideAll(116));
+        assert_eq!(x, NucleotideAll::from(b't'));
         let x = NucleotideAll::from_str("X").unwrap();
         assert_ne!(x, NucleotideAll::from_str("a").unwrap());
         assert_ne!(x, NucleotideAll::from_str("c").unwrap());

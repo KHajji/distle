@@ -7,7 +7,6 @@ use env_logger::Env;
 use log::{debug, info};
 use rayon::ThreadPoolBuilder;
 
-
 mod processing;
 mod types;
 
@@ -50,9 +49,9 @@ struct Cli {
     #[arg(short = 'd', long, default_value = None)]
     maxdist: Option<usize>,
 
-    /// Number of threads to use.
-    #[arg(short = 't', long, default_value_t = 1)]
-    threads: usize,
+    /// Number of threads to use. If not set, all available threads will be used.
+    #[arg(short = 't', long, default_value = None)]
+    threads: Option<usize>,
 
     /// Skip the header line of the input file. Relevant for tabular input files.
     #[arg(short = 's', long)]
@@ -86,7 +85,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     debug!("Cli options: {:?}", opts);
 
     // Set threads
-    ThreadPoolBuilder::new().num_threads(opts.threads).build_global().unwrap();
+    match opts.threads {
+        Some(threads) => {
+            info!("Using {} threads", threads);
+            ThreadPoolBuilder::new()
+                .num_threads(threads)
+                .build_global()
+                .unwrap();
+        }
+        None => {
+            info!("Using all available threads");
+        }
+    }
 
     let start = Instant::now();
     let mut data_map = match opts.input_format {

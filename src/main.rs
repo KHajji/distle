@@ -116,16 +116,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     debug!("Reading time: {:?}", start.elapsed());
     let start = Instant::now();
 
-    // Remove columns that are all the same
-    // let n_removed = remove_identical_columns(&mut data_map);
-
-    // debug!(
-    //     "Removed {:?} columns that are all the same: {:?}",
-    //     n_removed,
-    //     start.elapsed()
-    // );
-    // let start = Instant::now();
-
     info!("Computing distances and writing to file: {}", &opts.output);
 
     let precomputed_distances =

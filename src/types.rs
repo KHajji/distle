@@ -23,24 +23,6 @@ pub enum SupportedTypeVec {
     SHA1Hash(Vec<SHA1Hash>),
 }
 
-// #[derive(Debug, PartialEq, Clone, Copy)]
-// pub enum SupportedType<T> {
-//     Value(T),
-// }
-
-// impl<T> SupportedType<T>
-// where
-//     T: FromStr + std::fmt::Debug,
-// {
-//     pub fn from_str(s: &str) -> Result<Self, Box<dyn std::error::Error>>
-//     where
-//         <T as FromStr>::Err: 'static + std::error::Error,
-//     {
-//         let value = T::from_str(s)?;
-//         Ok(SupportedType::Value(value))
-//     }
-// }
-
 #[derive(Debug, Clone, Copy)]
 pub struct ChewBBACAinteger(u16);
 

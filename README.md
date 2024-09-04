@@ -66,6 +66,9 @@ Options:
   -d, --maxdist <MAXDIST>
           If set, distance calculations will be stopped when this distance is reached. Useful for large datasets
 
+  -t, --threads <THREADS>
+          Number of threads to use. If not set, all available threads will be used
+
   -s, --skip-header
           Skip the header line of the input file. Relevant for tabular input files
 

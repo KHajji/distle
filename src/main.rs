@@ -128,17 +128,12 @@ fn main() -> Result<(), Box<dyn Error>> {
             HashMap::new()
         };
 
-    let mut actual_precomputed_distances = HashMap::new();
-    for ((key1, key2), value) in precomputed_distances.iter() {
-        actual_precomputed_distances.insert((key1.as_str(), key2.as_str()), value.clone());
-    }
-
     // Compute the pairwise distances
     let distances = compute_distances(
         &data_map,
         opts.maxdist,
         opts.output_mode,
-        Some(&actual_precomputed_distances),
+        Some(&precomputed_distances),
     );
 
     let writer: Box<dyn Write> = if opts.output == "-" {

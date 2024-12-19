@@ -20,7 +20,7 @@ pub enum SupportedTypeVec {
     Nucleotide(Vec<Nucleotide>),
     NucleotideAll(Vec<NucleotideAll>),
     Cgmlst(Vec<ChewBBACAinteger>),
-    SHA1Hash(Vec<SHA1Hash>),
+    SHA1Hash(Vec<Hash>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -44,23 +44,26 @@ impl PartialEq for ChewBBACAinteger {
 
 // A type that can be used to represent a fixed byte array
 // and that can be parsed from a string of hex digits
+// The default hash size is 20 bytes corresponding to SHA1
+// It still can be used for other hash sizes but for larger hashes the later bytes will be ignored
+// Smaller hashes will be padded with zeros
 #[derive(Debug, Clone, Copy)]
-pub struct SHA1Hash([u8; 20]);
+pub struct Hash([u8; 20]);
 
-impl std::str::FromStr for SHA1Hash {
+impl std::str::FromStr for Hash {
     type Err = std::num::ParseIntError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut bytes = [0u8; 20];
-        let len = s.len() / 2;
+        let len = std::cmp::min(s.len() / 2, 20);
         for i in 0..len {
             bytes[i] = u8::from_str_radix(&s[i * 2..i * 2 + 2], 16).unwrap_or_default();
         }
-        Ok(SHA1Hash(bytes))
+        Ok(Hash(bytes))
     }
 }
 
-impl PartialEq for SHA1Hash {
+impl PartialEq for Hash {
     fn eq(&self, other: &Self) -> bool {
         if self.0 == [0; 20] || other.0 == [0; 20] {
             return true;
@@ -123,7 +126,7 @@ impl std::str::FromStr for NucleotideAll {
         // get first char from str and put it in
         s.chars()
             .next()
-            .map(|c| Self(c.to_ascii_lowercase() as u8))
+            .map(|c| Self::from(c as u8))
             .ok_or("NucleotideAll::from_str: could not parse first char from string")
     }
 }
@@ -160,37 +163,57 @@ mod tests {
 
     #[test]
     fn test_sha1_hash() {
-        let x = SHA1Hash::from_str("6bc8d04609de559621859873ef301f221cf5d991").unwrap();
+        let x = Hash::from_str("6bc8d04609de559621859873ef301f221cf5d991").unwrap();
+        let empty_hash = Hash([0; 20]);
+
         assert_eq!(
             x,
-            SHA1Hash([
+            Hash([
                 0x6b, 0xc8, 0xd0, 0x46, 0x09, 0xde, 0x55, 0x96, 0x21, 0x85, 0x98, 0x73, 0xef, 0x30,
                 0x1f, 0x22, 0x1c, 0xf5, 0xd9, 0x91
             ])
         );
+
+        assert_eq!(empty_hash, x);
+
+        let sha256_hash =
+            Hash::from_str("6bc8d04609de559621859873ef301f221cf5d9916bc8d04609de559621859873")
+                .unwrap();
+        // this should equal the first 20 bytes of the hash since later bytes are ignored in longer hashes
+        assert_eq!(x, sha256_hash);
+
+        let short_hash = Hash::from_str("6bc8d0").unwrap();
+        let short_hash_padded = Hash::from_str("6bc8d0000000000000000000000000000000000").unwrap();
+
+        assert_ne!(x, short_hash);
+        assert_eq!(short_hash_padded, short_hash);
     }
 
     #[test]
     fn test_nucleotide() {
-        let x = Nucleotide::from_str("A").unwrap();
-        assert_eq!(x, Nucleotide(1));
-        assert_ne!(x, Nucleotide::from(b'C'));
-        let x = Nucleotide::from_str("C").unwrap();
-        assert_eq!(x, Nucleotide(2));
-        let x = Nucleotide::from_str("G").unwrap();
-        assert_eq!(x, Nucleotide(4));
-        let x = Nucleotide::from_str("T").unwrap();
-        assert_eq!(x, Nucleotide(8));
-        let x = Nucleotide::from_str("a").unwrap();
-        assert_eq!(x, Nucleotide(1));
-        let x = Nucleotide::from_str("c").unwrap();
-        assert_eq!(x, Nucleotide(2));
-        let x = Nucleotide::from_str("g").unwrap();
-        assert_eq!(x, Nucleotide(4));
-        let x = Nucleotide::from_str("t").unwrap();
-        assert_eq!(x, Nucleotide(8));
+        let cap_a = Nucleotide::from_str("A").unwrap();
+        let cap_c = Nucleotide::from_str("C").unwrap();
+        let cap_g = Nucleotide::from_str("G").unwrap();
+        let cap_t = Nucleotide::from_str("T").unwrap();
+        let a = Nucleotide::from_str("a").unwrap();
+        let c = Nucleotide::from_str("c").unwrap();
+        let g = Nucleotide::from_str("g").unwrap();
+        let t = Nucleotide::from_str("t").unwrap();
         let x = Nucleotide::from_str("X").unwrap();
-        assert_eq!(x, Nucleotide(15));
+
+        assert_eq!(cap_a, a);
+        assert_eq!(cap_c, c);
+        assert_eq!(cap_g, g);
+        assert_eq!(cap_t, t);
+        assert_eq!(cap_a, Nucleotide::from(b'a'));
+        assert_eq!(cap_c, Nucleotide::from(b'c'));
+        assert_eq!(cap_g, Nucleotide::from(b'g'));
+        assert_eq!(cap_t, Nucleotide::from(b't'));
+
+        assert_ne!(cap_a, cap_c);
+        assert_ne!(cap_a, cap_g);
+        assert_ne!(cap_a, cap_t);
+
         assert_eq!(x, Nucleotide::from(b'a'));
         assert_eq!(x, Nucleotide::from(b'c'));
         assert_eq!(x, Nucleotide::from(b'g'));
@@ -199,18 +222,24 @@ mod tests {
 
     #[test]
     fn test_nucleotide_all() {
-        let x = NucleotideAll::from_str("A").unwrap();
-        assert_eq!(x, NucleotideAll::from(b'a'));
-        let x = NucleotideAll::from_str("C").unwrap();
-        assert_eq!(x, NucleotideAll::from(b'c'));
-        let x = NucleotideAll::from_str("G").unwrap();
-        assert_eq!(x, NucleotideAll::from(b'g'));
-        let x = NucleotideAll::from_str("T").unwrap();
-        assert_eq!(x, NucleotideAll::from(b't'));
+        let a = NucleotideAll::from_str("A").unwrap();
+        let c = NucleotideAll::from_str("C").unwrap();
+        let g = NucleotideAll::from_str("G").unwrap();
+        let t = NucleotideAll::from_str("T").unwrap();
         let x = NucleotideAll::from_str("X").unwrap();
-        assert_ne!(x, NucleotideAll::from_str("a").unwrap());
-        assert_ne!(x, NucleotideAll::from_str("c").unwrap());
-        assert_ne!(x, NucleotideAll::from_str("t").unwrap());
-        assert_ne!(x, NucleotideAll::from_str("g").unwrap());
+
+        assert_eq!(a, NucleotideAll::from(b'a'));
+        assert_eq!(c, NucleotideAll::from(b'c'));
+        assert_eq!(g, NucleotideAll::from(b'g'));
+        assert_eq!(t, NucleotideAll::from(b't'));
+
+        assert_ne!(a, c);
+        assert_ne!(a, g);
+        assert_ne!(a, t);
+
+        assert_ne!(x, NucleotideAll::from(b'a'));
+        assert_ne!(x, NucleotideAll::from(b'c'));
+        assert_ne!(x, NucleotideAll::from(b'g'));
+        assert_ne!(x, NucleotideAll::from(b't'));
     }
 }

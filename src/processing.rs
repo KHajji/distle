@@ -118,39 +118,61 @@ pub fn read_and_parse_tabular_distances<'a, R: BufRead>(
             .into();
         let dist = fields.next().ok_or("Missing distance field")?.parse()?;
         distances.insert((id1.clone(), id2.clone()), dist);
-        distances.insert((id1, id2), dist); // Also insert the reverse in case the input has a different order
+        distances.insert((id2, id1), dist); // Also insert the reverse in case the input has a different order
     }
     Ok(distances)
 }
+
+// Constants for chunk size calculation
+const MIN_CHUNK_SIZE: usize = 100;
+const ITEMS_PER_CORE: usize = 100;
 
 pub fn compute_distances<'a>(
     data_map: &'a InputMatrix,
     maxdist: Option<usize>,
     output_mode: OutputMode,
-    already_computed: Option<&'a HashMap<(&'a str, &'a str), usize>>,
+    already_computed: Option<&'a HashMap<(String, String), usize>>,
 ) -> impl Iterator<Item = (&'a str, &'a str, usize)> + Clone {
     let len = data_map.len();
+    let num_cores = rayon::current_num_threads();
 
-    (0..len)
-        .into_par_iter()
-        .flat_map(move |i| {
-            let max_j = match output_mode {
-                OutputMode::LowerTriangle => i,
-                OutputMode::Full => len,
-            };
-            (0..max_j).into_par_iter().map(move |j| {
-                let (id1, row1) = &data_map[i];
-                let (id2, row2) = &data_map[j];
+    // Calculate chunk size based on number of cores
+    // This is optimized to use all available cores while keeping memory usage low
+    let chunk_size = len
+        .div_ceil(num_cores * ITEMS_PER_CORE)
+        .max(MIN_CHUNK_SIZE)
+        .min(len / 4)
+        .max(1);
 
-                let dist = already_computed
-                    .and_then(|distances| distances.get(&(id1.as_str(), id2.as_str())).cloned())
-                    .unwrap_or_else(|| calculate_distance(row1, row2, maxdist));
+    (0..len).step_by(chunk_size).flat_map(move |chunk_start| {
+        // Process chunk in parallel and collect results per chunk
+        // This is to reduce memory usage while still using all available cores
+        let chunk_end = (chunk_start + chunk_size).min(len);
 
-                (id1.as_str(), id2.as_str(), dist)
+        (chunk_start..chunk_end)
+            .into_par_iter()
+            .flat_map_iter(|i| {
+                let max_j = match output_mode {
+                    OutputMode::LowerTriangle => i,
+                    OutputMode::Full => len,
+                };
+
+                (0..max_j).map(move |j| {
+                    let (id1, row1) = &data_map[i];
+                    let (id2, row2) = &data_map[j];
+                    
+                    let dist = already_computed
+                        .and_then(|distances| {
+                            distances.get(&(id1.to_string(), id2.to_string())).copied()
+                        })
+                        .unwrap_or_else(|| calculate_distance(row1, row2, maxdist));
+
+                    (id1.as_str(), id2.as_str(), dist)
+                })
             })
-        })
-        .collect::<Vec<_>>()
-        .into_iter()
+            .collect::<Vec<_>>()
+            .into_iter()
+    })
 }
 
 fn calculate_distance(
@@ -191,7 +213,7 @@ fn compute_distance_eq<T: PartialEq>(row1: &[T], row2: &[T], maxdist: Option<usi
 }
 
 pub fn write_distances_to_file<'a, W: Write>(
-    distances: impl Iterator<Item = (&'a str, &'a str, usize)> + Clone,
+    distances: impl Iterator<Item = (&'a str, &'a str, usize)>,
     writer: W,
     output_sep: char,
     output_format: OutputFormat,
@@ -219,7 +241,7 @@ fn write_distances_to_long_format<'a, W: Write>(
 }
 
 fn write_distances_to_philip<'a, W: Write>(
-    distances: impl Iterator<Item = (&'a str, &'a str, usize)> + Clone,
+    distances: impl Iterator<Item = (&'a str, &'a str, usize)>,
     mut writer: W,
     output_sep: char,
     number_of_samples: usize,
@@ -247,7 +269,7 @@ fn write_distances_to_philip<'a, W: Write>(
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{ChewBBACAinteger, Nucleotide, NucleotideAll, SHA1Hash};
+    use crate::types::{ChewBBACAinteger, Hash, Nucleotide, NucleotideAll};
     use std::str::FromStr;
 
     use super::*;
@@ -286,10 +308,10 @@ mod tests {
 
     #[test]
     fn test_compute_distance_eq_for_chewbbaca_hash() {
-        let x0 = SHA1Hash::from_str("-").unwrap();
-        let x1 = SHA1Hash::from_str("6bc8d04609de559621859873ef301f221cf5d991").unwrap();
-        let x2 = SHA1Hash::from_str("1e354c3d41dc0d3c403db19f22de23299a33a1c8").unwrap();
-        let x3 = SHA1Hash::from_str("beb636132e9cb496f1c1d37ecafdd62ed02060b0").unwrap();
+        let x0 = Hash::from_str("-").unwrap();
+        let x1 = Hash::from_str("6bc8d04609de559621859873ef301f221cf5d991").unwrap();
+        let x2 = Hash::from_str("1e354c3d41dc0d3c403db19f22de23299a33a1c8").unwrap();
+        let x3 = Hash::from_str("beb636132e9cb496f1c1d37ecafdd62ed02060b0").unwrap();
         let row1 = vec![x0, x1, x2, x3, x1];
         let row2 = vec![x0, x1, x1, x2, x1];
         let row3 = vec![x0, x0, x2, x0, x0];

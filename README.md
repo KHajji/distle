@@ -1,10 +1,24 @@
 ![Conda Version](https://img.shields.io/conda/vn/bioconda/distle)
 ![Static Badge](https://img.shields.io/badge/install%20with-docker-important.svg?style=flat&logo=docker&link=https%3A%2F%2Fquay.io%2Frepository%2Fbiocontainers%2Fdistle)
+Fast distance matrixes for large-scale pathogen comparisons.
+
+# Installation
+```conda install bioconda::distle```
 
 
+# Quick start
 
+```
+distle input_fasta.aln output_distances.tsv
+
+distle --skip-header --input-format cgmlst-hash --output-format phylip input_cgmlst.tsv output_distances.phy
+```
+
+# Building
 Build with 
 ```cargo build -r```
+
+# Options
 
 Run with 
 ```./target/release/distle --help```

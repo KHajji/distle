@@ -1,8 +1,10 @@
 ![Conda Version](https://img.shields.io/conda/vn/bioconda/distle)
 ![Static Badge](https://img.shields.io/badge/install%20with-docker-important.svg?style=flat&logo=docker&link=https%3A%2F%2Fquay.io%2Frepository%2Fbiocontainers%2Fdistle)
+
 Fast distance matrixes for large-scale pathogen comparisons.
 
 # Installation
+Install with
 ```conda install bioconda::distle```
 
 

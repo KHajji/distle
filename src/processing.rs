@@ -160,7 +160,7 @@ pub fn compute_distances<'a>(
                 (0..max_j).map(move |j| {
                     let (id1, row1) = &data_map[i];
                     let (id2, row2) = &data_map[j];
-                    
+
                     let dist = already_computed
                         .and_then(|distances| {
                             distances.get(&(id1.to_string(), id2.to_string())).copied()

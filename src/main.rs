@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::error::Error;
 use std::io::{stdin, stdout, BufReader, BufWriter, Read, Write};
 use std::time::Instant;
@@ -80,7 +79,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     } else {
         Box::new(std::fs::File::open(&opts.input)?)
     };
-
     let reader = BufReader::new(reader);
 
     // print version info
@@ -99,7 +97,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .unwrap();
         }
         None => {
-            info!("Using all available threads");
+            let n = rayon::current_num_threads();
+            info!("Using all {n} available threads");
         }
     }
 
@@ -113,27 +112,25 @@ fn main() -> Result<(), Box<dyn Error>> {
             read_and_parse_tabular(reader, opts.input_format, opts.input_sep, opts.skip_header)?
         }
     };
+
+    let precomputed_distances = opts
+        .precomputed_distances
+        .map(|file_name| {
+            let file = std::fs::File::open(file_name)?;
+            let reader = BufReader::new(file);
+            read_and_parse_tabular_distances(reader, opts.output_sep)
+        })
+        .transpose()?;
+
     debug!("Reading time: {:?}", start.elapsed());
     let start = Instant::now();
 
     info!("Computing distances and writing to file: {}", &opts.output);
-
-    let precomputed_distances =
-        if let Some(precomputed_distances_file) = &opts.precomputed_distances {
-            let reader: Box<dyn Read> = Box::new(std::fs::File::open(precomputed_distances_file)?);
-            let reader = BufReader::new(reader);
-
-            read_and_parse_tabular_distances(reader, opts.output_sep)?
-        } else {
-            HashMap::new()
-        };
-
-    // Compute the pairwise distances
     let distances = compute_distances(
         &data_map,
         opts.maxdist,
         opts.output_mode,
-        Some(&precomputed_distances),
+        precomputed_distances.as_ref(),
     );
 
     let writer: Box<dyn Write> = if opts.output == "-" {
@@ -143,9 +140,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let mut writer = BufWriter::new(writer);
-    // // Cancel the program and exit
-    // debug!("Early exit");
-    // return Ok(());
 
     write_distances_to_file(
         distances,

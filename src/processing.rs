@@ -45,7 +45,7 @@ pub fn read_and_parse_tabular<R: BufRead>(
         let mut fields = line.split(separator);
         let id = fields
             .next()
-            .ok_or_else(|| "Missing ID field at the start of the line")?;
+            .ok_or("Missing ID field at the start of the line")?;
         let id = id.to_string();
 
         let row_data = match input_format {
@@ -100,7 +100,7 @@ fn parse_fasta_seq<T: From<u8>>(seq: &[u8]) -> Result<Vec<T>, Box<dyn Error>> {
     Ok(seq.iter().map(|&u| T::from(u)).collect())
 }
 
-pub fn read_and_parse_tabular_distances<'a, R: BufRead>(
+pub fn read_and_parse_tabular_distances<R: BufRead>(
     reader: R,
     separator: char,
 ) -> Result<HashMap<(String, String), usize>, Box<dyn Error>> {

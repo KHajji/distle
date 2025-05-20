@@ -75,12 +75,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let opts: Cli = Cli::parse();
     if opts.verbose {
         env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
+    } else if opts.quiet {
+        env_logger::Builder::from_env(Env::default().default_filter_or("error")).init();
     } else {
-        if opts.quiet {
-            env_logger::Builder::from_env(Env::default().default_filter_or("error")).init();
-        } else {
-            env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();            
-        }
+        env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     }
 
     let reader: Box<dyn Read> = if opts.input == "-" {

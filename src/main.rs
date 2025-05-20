@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::env;
 use std::error::Error;
 use std::io::{stdin, stdout, BufReader, BufWriter, Read, Write};
 use std::time::Instant;
@@ -65,12 +65,18 @@ struct Cli {
     /// Enable verbose mode. Outputs debug messages and calculation times.
     #[arg(short = 'v', long)]
     verbose: bool,
+
+    #[arg(short = 'q', long)]
+    /// Quiet mode. Suppresses all output except for errors.
+    quiet: bool,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     let opts: Cli = Cli::parse();
     if opts.verbose {
         env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
+    } else if opts.quiet {
+        env_logger::Builder::from_env(Env::default().default_filter_or("error")).init();
     } else {
         env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     }
@@ -80,7 +86,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     } else {
         Box::new(std::fs::File::open(&opts.input)?)
     };
-
     let reader = BufReader::new(reader);
 
     // print version info
@@ -99,7 +104,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .unwrap();
         }
         None => {
-            info!("Using all available threads");
+            let n = rayon::current_num_threads();
+            info!("Using all {n} available threads");
         }
     }
 
@@ -113,32 +119,25 @@ fn main() -> Result<(), Box<dyn Error>> {
             read_and_parse_tabular(reader, opts.input_format, opts.input_sep, opts.skip_header)?
         }
     };
+
+    let precomputed_distances = opts
+        .precomputed_distances
+        .map(|file_name| {
+            let file = std::fs::File::open(file_name)?;
+            let reader = BufReader::new(file);
+            read_and_parse_tabular_distances(reader, opts.output_sep)
+        })
+        .transpose()?;
+
     debug!("Reading time: {:?}", start.elapsed());
     let start = Instant::now();
 
     info!("Computing distances and writing to file: {}", &opts.output);
-
-    let precomputed_distances =
-        if let Some(precomputed_distances_file) = &opts.precomputed_distances {
-            let reader: Box<dyn Read> = Box::new(std::fs::File::open(precomputed_distances_file)?);
-            let reader = BufReader::new(reader);
-
-            read_and_parse_tabular_distances(reader, opts.output_sep)?
-        } else {
-            HashMap::new()
-        };
-
-    let mut actual_precomputed_distances = HashMap::new();
-    for ((key1, key2), value) in precomputed_distances.iter() {
-        actual_precomputed_distances.insert((key1.as_str(), key2.as_str()), value.clone());
-    }
-
-    // Compute the pairwise distances
     let distances = compute_distances(
         &data_map,
         opts.maxdist,
         opts.output_mode,
-        Some(&actual_precomputed_distances),
+        precomputed_distances.as_ref(),
     );
 
     let writer: Box<dyn Write> = if opts.output == "-" {
@@ -148,9 +147,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let mut writer = BufWriter::new(writer);
-    // // Cancel the program and exit
-    // debug!("Early exit");
-    // return Ok(());
 
     write_distances_to_file(
         distances,

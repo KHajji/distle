@@ -1,3 +1,4 @@
+use std::env;
 use std::error::Error;
 use std::io::{stdin, stdout, BufReader, BufWriter, Read, Write};
 use std::time::Instant;
@@ -64,6 +65,10 @@ struct Cli {
     /// Enable verbose mode. Outputs debug messages and calculation times.
     #[arg(short = 'v', long)]
     verbose: bool,
+
+    #[arg(short = 'q', long)]
+    /// Quiet mode. Suppresses all output except for errors.
+    quiet: bool,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -71,7 +76,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     if opts.verbose {
         env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
     } else {
-        env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+        if opts.quiet {
+            env_logger::Builder::from_env(Env::default().default_filter_or("error")).init();
+        } else {
+            env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();            
+        }
     }
 
     let reader: Box<dyn Read> = if opts.input == "-" {
